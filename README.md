@@ -7,7 +7,7 @@ The theoretical foundation and pipeline strictly reproduce the methodology prese
 *Marins, M. A., Ribeiro, F. M. L., Netto, S. L., & da Silva, E. A. B. (Journal of the Franklin Institute, 2018).*
 DOI: [10.1016/j.jfranklin.2017.07.038](https://doi.org/10.1016/j.jfranklin.2017.07.038)
 
-Our fine-tuned implementation achieves an outstanding $98.47\%$ accuracy on the test set, closely matching the paper's reported peak performance ($\approx 98.49\%$) for the Model B configuration. Notably, the model achieved $100\%$ precision and recall for the severely underrepresented Normal operating class.
+Our fine-tuned implementation achieves an outstanding 98.47% accuracy on the test set, closely matching the paper's reported peak performance ($\approx 98.49$%) for the Model B configuration. Notably, the model achieved 100% precision and recall for the severely underrepresented Normal operating class.
 
 The project utilizes the [Machinery Fault Database (MaFaulDa)](https://www02.smt.ufrj.br/~offshore/mfs/index.html), an extensive multivariate time-series database acquired from a SpectraQuest alignment-balance-vibration trainer.
 * **Sensors**: 6 accelerometers, 1 microphone, and 1 tachometer (sampled at 50 kHz).
