@@ -7,7 +7,7 @@ The theoretical foundation and pipeline strictly reproduce the methodology prese
 *Marins, M. A., Ribeiro, F. M. L., Netto, S. L., & da Silva, E. A. B. (Journal of the Franklin Institute, 2018).*
 DOI: [10.1016/j.jfranklin.2017.07.038](https://doi.org/10.1016/j.jfranklin.2017.07.038)
 
-Our fine-tuned implementation achieves an outstanding 98.47 percent accuracy on the test set, closely matching the paper's reported peak performance (~98.48 percent) for the Model B configuration. Notably, the model achieved 100 percent precision and recall for the severely underrepresented Normal operating class.
+Our fine-tuned implementation achieves an outstanding $98.47\%$ accuracy on the test set, closely matching the paper's reported peak performance ($\approx 98.49\%$) for the Model B configuration. Notably, the model achieved $100\%$ precision and recall for the severely underrepresented Normal operating class.
 
 The project utilizes the [Machinery Fault Database (MaFaulDa)](https://www02.smt.ufrj.br/~offshore/mfs/index.html), an extensive multivariate time-series database acquired from a SpectraQuest alignment-balance-vibration trainer.
 * **Sensors**: 6 accelerometers, 1 microphone, and 1 tachometer (sampled at 50 kHz).
@@ -18,18 +18,20 @@ The solution is divided into three main conceptual modules:
 
 ### 1. Feature Extraction (Step 2)
 Transforms raw multivariate time-series into a condensed 46-dimensional feature vector.
-* **Spectral Features (22)**: Extracts the rotation frequency (f_r) from the tachometer's Discrete Fourier Transform (DFT). Then, it extracts the exact magnitudes of the remaining 7 sensors at f_r, 2 * f_r, and 3 * f_r.
-* **Statistical Features (24)**: Computes the mean, entropy, and kurtosis for each of the 8 sensors.
+* **Spectral Features (22)**: Extracts the rotation frequency ($f_r$) from the tachometer's Discrete Fourier Transform (DFT). Then, it extracts the exact magnitudes of the remaining 7 sensors at $f_r$, $2 \cdot f_r$, and $3 \cdot f_r$.
+* **Statistical Features (24)**: Computes the mean ($\mu_j$), Shannon entropy ($H_j$), and kurtosis ($\kappa_j$) for each of the 8 sensors.
 
 ### 2. SBM Class Dictionaries (Step 3)
 Models the normal manifold of each fault class to generate highly discriminative similarity scores.
-* **Initialization**: Employs a robust approximation of the Geometric Median of the class states.
-* **Memory Matrix Construction (Threshold Method)**: Iteratively builds a compact dictionary of representative states for each class. A new state is memorized if its similarity to all existing states is strictly less than a threshold.
-* **Similarity Estimation**: Uses the Wegerich Similarity Function (WSF) with L1 norm (Manhattan distance) to generate 6 similarity scores for any given input.
+* **Initialization**: Employs Weiszfeld's algorithm for a robust iterative approximation of the Geometric Median of the class states.
+* **Memory Matrix Construction (Threshold Method)**: Iteratively builds a compact dictionary ($D_c$) of representative states for each class. A new state is memorized if its similarity to all existing states in $D_c$ is strictly less than a threshold $\tau$.
+* **Similarity Estimation**: Uses the Wegerich Similarity Function (WSF) coupled with the $L_1$ norm (Manhattan distance) to generate 6 similarity scores for any given input:
+  $$s(x_1, x_2) = \frac{1}{1 + \gamma \cdot \|x_1 - x_2\|_1}$$
 
 ### 3. Classification Ensemble (Step 4)
 An ensemble approach combining the engineered features with the SBM outputs.
-* **Feature Extension**: Extends the original 46 features with the 6 SBM similarity scores (replicating the 3rd configuration of Experiment 3 from the paper).
+* **Feature Extension**: Extends the original 46 features with the 6 SBM similarity scores $s_c(x_n)$ (replicating the 3rd configuration of Experiment 3 from the paper), resulting in a 52-dimensional extended feature representation:
+  $$x_{n,\text{extended}} = \begin{bmatrix} x_n \\ s_1(x_n) \\ \vdots \\ s_6(x_n) \end{bmatrix}$$
 * **Ensemble Model**: Employs a Random Forest Classifier with balanced class weights to mitigate the natural scarcity of Normal operation data.
 
 ---
