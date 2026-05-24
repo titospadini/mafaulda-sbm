@@ -215,3 +215,36 @@ def generate_extended_features(X: np.ndarray, D_c_dict: dict, gamma: float = GAM
     X_extended = np.hstack([X, error_vectors])
     return X_extended
 
+
+def generate_similarity_extended_features(X: np.ndarray, D_c_dict: dict, gamma: float = GAMMA) -> np.ndarray:
+    """
+    Computes SBM estimates, calculates the WSF similarity score between the
+    original sample and each class estimate, and concatenates the original
+    46 features with the 6-dimensional SBM similarity vector.
+
+    Parameters:
+        X (np.ndarray): Original feature matrix of shape (N, 46).
+        D_c_dict (dict): Dictionary mapping class names to D_c matrices.
+        gamma (float): WSF sensitivity parameter.
+
+    Returns:
+        np.ndarray: The 52-dimensional extended feature matrix of shape (N, 52).
+    """
+    # 1. Compute estimates for all classes
+    estimates = compute_sbm_estimates(X, D_c_dict, gamma=gamma)
+
+    # Sort class names alphabetically to ensure deterministic ordering of the 6 classes
+    class_names = sorted(list(D_c_dict.keys()))
+    N = len(X)
+
+    # 2. Compute similarity between each sample and its estimate for each class
+    similarities_matrix = np.zeros((N, len(class_names)))
+    for c_idx, class_name in enumerate(class_names):
+        X_hat_c = estimates[class_name]
+        similarities_matrix[:, c_idx] = wegerich_similarity(X, X_hat_c, gamma=gamma)
+
+    # 3. Concatenate original 46 features with the 6-dimensional similarity vector
+    X_extended = np.hstack([X, similarities_matrix])
+    return X_extended
+
+
