@@ -133,7 +133,7 @@ Transforms raw, high-frequency multivariate time-series signals into a condensed
   $$A(j, h) = \text{Interp}\left(h \cdot f(\text{rot}), f, M(j)\right), \quad \text{for } j \in \{0, \dots, 6\}, \; h \in \{1, 2, 3\}$$
   * *Symbol Definitions*:
     * $j$: Physical sensor channel index. $j \in \{0, \dots, 6\}$ maps to the 6 accelerometers and 1 microphone.
-    * $h$: Harmonic order. $h = 1$ is the fundamental rotation frequency ($f(\text{rot})$), $h = 2$ is the second harmonic ($2 \cdot f(\text{rot})$), and $h = 3$ is the third harmonic ($3 \cdot f(\text{rot})$).
+    * $h$: Harmonic order. $h = 1$ is the fundamental rotation frequency $(f(\text{rot}))$, $h = 2$ is the second harmonic $(2 \cdot f(\text{rot}))$, and $h = 3$ is the third harmonic $(3 \cdot f(\text{rot}))$.
     * $A(j, h)$: Interpolated continuous spectral amplitude of the $j$-th physical sensor at harmonic frequency $h \cdot f(\text{rot})$.
     * $M(j)$: Discrete magnitude spectrum normalized to physical amplitude for sensor channel $j$.
     * $f$: Vector of discrete frequencies $f(k)$.
