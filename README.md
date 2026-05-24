@@ -9,7 +9,7 @@ DOI: [10.1016/j.jfranklin.2017.07.038](https://doi.org/10.1016/j.jfranklin.2017.
 
 Our fine-tuned implementation achieves an outstanding 98.47 percent accuracy on the test set, closely matching the paper's reported peak performance (~98.48 percent) for the Model B configuration. Notably, the model achieved 100 percent precision and recall for the severely underrepresented Normal operating class.
 
-The project utilizes the Machinery Fault Database (MaFaulDa), an extensive multivariate time-series database acquired from a SpectraQuest alignment-balance-vibration trainer.
+The project utilizes the [Machinery Fault Database (MaFaulDa)](https://www02.smt.ufrj.br/~offshore/mfs/index.html), an extensive multivariate time-series database acquired from a SpectraQuest alignment-balance-vibration trainer.
 * **Sensors**: 6 accelerometers, 1 microphone, and 1 tachometer (sampled at 50 kHz).
 * **Scenarios**: 1951 unique operational scenarios (5 seconds each).
 * **Classes**: Normal Operation (49), Imbalance (333), Horizontal Misalignment (197), Vertical Misalignment (301), Overhang Bearing Fault (513), and Underhang Bearing Fault (558).
