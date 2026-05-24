@@ -1,17 +1,23 @@
 """
 MaFaulDa Rotating-Machine Fault Diagnosis - Unified Execution Entrypoint
 
-This script acts as the single dedicated entrypoint for the entire data preparation,
+This script acts as the single dedicated entrypoint for the entire data
+preparation,
 feature extraction, SBM dictionary construction, classifier evaluation, and
 hyperparameter tuning pipeline.
 
 Workflow:
-1. Parse command-line arguments to specify dataset path, actions, and optimization options.
+1. Parse command-line arguments to specify dataset path, actions, and
+   optimization options.
 2. Step 1: Map dataset files and perform stratified train/test split.
-3. Step 2: Run parallel feature extraction (46 features per file) or skip if cached.
-4. Step 3: Construct class dictionaries (D_c) and SBM extended feature matrices (92 features).
-5. Step 4: Train Random Forest classifier and perform evaluation (accuracy, confusion matrix, report).
-6. Optional Step 5: Execute 10-fold Stratified Cross-Validation grid search for hyperparameter tuning.
+3. Step 2: Run parallel feature extraction (46 features per file) or skip if
+   cached.
+4. Step 3: Construct class dictionaries (D_c) and SBM extended feature matrices
+   (92 features).
+5. Step 4: Train Random Forest classifier and perform evaluation (accuracy,
+   confusion matrix, report).
+6. Optional Step 5: Execute 10-fold Stratified Cross-Validation grid search for
+   hyperparameter tuning.
 """
 
 import argparse
@@ -51,27 +57,39 @@ from cv_tuning import run_tuning
 
 def run_pipeline(dataset_path: str, skip_extraction: bool, data_dir: str, use_hann: bool = False, use_fixed_entropy: bool = False) -> None:
     """
-    Executes the standard end-to-end rotating-machine fault diagnosis classification pipeline.
+    Executes the standard end-to-end rotating-machine fault diagnosis
+    classification pipeline.
 
     Pedagogical Context:
         This orchestrator coordinates the entire multi-stage pipeline:
-          1. Step 1: Mapping & Splitting: Reads raw files, verifies total counts, and performs a 90/10
+          1. Step 1: Mapping & Splitting: Reads raw files, verifies total
+             counts, and performs a 90/10
              stratified train/test split to guarantee representativeness.
-          2. Step 2: Feature Extraction: Runs process-parallel feature extraction (46 features per file)
+          2. Step 2: Feature Extraction: Runs process-parallel feature
+             extraction (46 features per file)
              or skips it to load cached matrices from `data/`.
-          3. Step 3: SBM Dictionary & Projection: Builds 6 class memory matrices (dictionaries) strictly
-             on the training features, then projects all training and testing features into 92-dimensional
-             extended feature matrices using best-matching SBM estimation error vectors.
-          4. Step 4: Random Forest Classification: Trains the Random Forest ensemble and outputs comprehensive
-             classification accuracy, confusion matrix, and precision/recall diagnostics.
+          3. Step 3: SBM Dictionary & Projection: Builds 6 class memory matrices
+             (dictionaries) strictly
+             on the training features, then projects all training and testing
+             features into 92-dimensional
+             extended feature matrices using best-matching SBM estimation error
+             vectors.
+          4. Step 4: Random Forest Classification: Trains the Random Forest
+             ensemble and outputs comprehensive
+             classification accuracy, confusion matrix, and precision/recall
+             diagnostics.
 
     Parameters:
         dataset_path (str): Path to the raw directory of the MaFaulDa database.
-        skip_extraction (bool): If True, reuses pre-extracted signal features from files under `./data`
+        skip_extraction (bool): If True, reuses pre-extracted signal features
+        from files under `./data`
           to speed up iterations.
-        data_dir (str): Directory where intermediate features and labels are saved.
-        use_hann (bool): Whether to apply a Hanning window and coherent gain correction to DFT signals.
-        use_fixed_entropy (bool): Whether to lock the Shannon entropy histogram range to (-10.0, 10.0).
+        data_dir (str): Directory where intermediate features and labels are
+        saved.
+        use_hann (bool): Whether to apply a Hanning window and coherent gain
+        correction to DFT signals.
+        use_fixed_entropy (bool): Whether to lock the Shannon entropy histogram
+        range to (-10.0, 10.0).
     """
     pipeline_start = time.time()
 

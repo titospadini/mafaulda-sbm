@@ -1,13 +1,19 @@
 """
 Experiment 3 Configuration 3 Replication Script
 
-This script feeds the Random Forest with SBM similarities instead of estimation errors,
+This script feeds the Random Forest with SBM similarities instead of estimation
+errors,
 following the third configuration of Experiment 3 from the paper:
-1. Loads the 46-dimensional features (X_train_features, X_test_features) and labels (y_train, y_test).
-2. Builds SBM dictionaries with optimal SBM parameters: threshold tau = 0.85 and gamma = 0.0010.
-3. Generates the 52-dimensional extended feature matrices using WSF similarity scores for each of the 6 classes.
-4. Saves the new extended matrices as X_train_extended_sim.npy and X_test_extended_sim.npy.
-5. Trains and evaluates the Random Forest classifier on the 90% training set and 10% test set.
+1. Loads the 46-dimensional features (X_train_features, X_test_features) and
+   labels (y_train, y_test).
+2. Builds SBM dictionaries with optimal SBM parameters: threshold tau = 0.85 and
+   gamma = 0.0010.
+3. Generates the 52-dimensional extended feature matrices using WSF similarity
+   scores for each of the 6 classes.
+4. Saves the new extended matrices as X_train_extended_sim.npy and
+   X_test_extended_sim.npy.
+5. Trains and evaluates the Random Forest classifier on the 90% training set and
+   10% test set.
 6. Prints the final Test Accuracy and Confusion Matrix.
 """
 
@@ -25,18 +31,27 @@ from rf_classifier import train_classifier, evaluate_classifier
 
 def run_replication() -> None:
     """
-    Executes the replication pipeline for Experiment 3 Configuration 3 from the scientific paper.
+    Executes the replication pipeline for Experiment 3 Configuration 3 from the
+    scientific paper.
 
     Pedagogical Context:
-        This script implements the class-similarity feature extension methodology:
-          1. Loads the 46-dimensional hand-crafted training and testing signal features.
-          2. Reconstructs SBM dictionaries for all 6 fault classes using the optimized hyperparameters:
-             similarity threshold $\\tau = 0.85$ and L1-based WSF sensitivity $\\gamma = 0.0010$.
-          3. Generates 52-dimensional extended feature matrices by concatenating the 46 original signal
+        This script implements the class-similarity feature extension
+        methodology:
+          1. Loads the 46-dimensional hand-crafted training and testing signal
+             features.
+          2. Reconstructs SBM dictionaries for all 6 fault classes using the
+             optimized hyperparameters:
+             similarity threshold $\\tau = 0.85$ and L1-based WSF sensitivity
+             $\\gamma = 0.0010$.
+          3. Generates 52-dimensional extended feature matrices by concatenating
+             the 46 original signal
              features with the 6 SBM class similarity scores.
-          4. Trains the Random Forest ensemble on the similarity-extended training set.
-          5. Evaluates model fidelity on the test set, outputting overall classification accuracy,
-             a detailed labeled confusion matrix, and full precision/recall metrics.
+          4. Trains the Random Forest ensemble on the similarity-extended
+             training set.
+          5. Evaluates model fidelity on the test set, outputting overall
+             classification accuracy,
+             a detailed labeled confusion matrix, and full precision/recall
+             metrics.
     """
     print("="*60)
     print("   Experiment 3 Configuration 3: SBM Similarity Features    ")
