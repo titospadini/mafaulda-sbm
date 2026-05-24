@@ -10,12 +10,21 @@ Cross-Validation grid search over gamma and tau values.
 
 import os
 import time
-from typing import List, Tuple
+
+from typing import (
+    List,
+    Tuple,
+)
+
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score
 
-from sbm_model import construct_class_dictionary, generate_extended_features
+from sbm_model import (
+    construct_class_dictionary,
+    generate_extended_features,
+)
+
 from rf_classifier import train_classifier
 
 

@@ -15,16 +15,32 @@ This script handles Step 2 of our Rotating-Machine Fault Diagnosis pipeline:
 import os
 import sys
 import time
-from typing import List, Tuple
+
+from typing import (
+    List,
+    Tuple,
+)
+
 from functools import partial
 import numpy as np
-from scipy.stats import kurtosis, entropy
+
+from scipy.stats import (
+    kurtosis,
+    entropy,
+)
+
 from concurrent.futures import ProcessPoolExecutor
 
 # Import mapping, normalization, and configuration from data_prep
 # Adding current directory to sys.path to ensure correct importing
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from data_prep import map_dataset, load_and_normalize, TRAIN_TEST_SPLIT_RATIO, RANDOM_STATE
+
+from data_prep import (
+    map_dataset,
+    load_and_normalize,
+    TRAIN_TEST_SPLIT_RATIO,
+    RANDOM_STATE,
+)
 
 # Constants
 SAMPLING_RATE = 50000  # 50 kHz

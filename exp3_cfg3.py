@@ -25,8 +25,15 @@ import numpy as np
 # Ensure local imports work correctly
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from sbm_model import construct_class_dictionary, generate_similarity_extended_features
-from rf_classifier import train_classifier, evaluate_classifier
+from sbm_model import (
+    construct_class_dictionary,
+    generate_similarity_extended_features,
+)
+
+from rf_classifier import (
+    train_classifier,
+    evaluate_classifier,
+)
 
 
 def run_replication() -> None:

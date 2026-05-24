@@ -9,7 +9,11 @@ evaluation.
 from typing import List
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    classification_report,
+)
 
 
 def train_classifier(X_train: np.ndarray, y_train: np.ndarray) -> RandomForestClassifier:

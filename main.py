@@ -25,9 +25,18 @@ import os
 import sys
 import time
 import numpy as np
-from sklearn.model_selection import train_test_split, StratifiedKFold
+
+from sklearn.model_selection import (
+    train_test_split,
+    StratifiedKFold,
+)
+
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    classification_report,
+)
 
 # Ensure local imports work correctly
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -37,21 +46,28 @@ from data_prep import (
     load_and_normalize,
     TRAIN_TEST_SPLIT_RATIO,
     RANDOM_STATE,
-    EXPECTED_TOTAL_FILES
+    EXPECTED_TOTAL_FILES,
 )
+
 from feature_extraction import (
     process_set_parallel,
-    EXPECTED_FEATURES
+    EXPECTED_FEATURES,
 )
+
 from sbm_model import (
     construct_class_dictionary,
     generate_extended_features,
     GAMMA,
     TAU,
     EXPECTED_ORIGINAL_FEATURES,
-    EXPECTED_EXTENDED_FEATURES
+    EXPECTED_EXTENDED_FEATURES,
 )
-from rf_classifier import train_classifier, evaluate_classifier
+
+from rf_classifier import (
+    train_classifier,
+    evaluate_classifier,
+)
+
 from cv_tuning import run_tuning
 
 
