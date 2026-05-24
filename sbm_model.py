@@ -24,8 +24,8 @@ import time
 import numpy as np
 
 # Constants from the paper
-GAMMA = 0.01
-TAU = 0.9
+GAMMA = 0.0010
+TAU = 0.85
 EXPECTED_ORIGINAL_FEATURES = 46
 EXPECTED_EXTENDED_FEATURES = 92
 
