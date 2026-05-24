@@ -1,3 +1,4 @@
+import argparse
 import os
 from typing import List, Tuple
 
@@ -62,8 +63,13 @@ def map_dataset(dataset_dir: str) -> Tuple[List[str], List[str]]:
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Prepare the MaFaulDa dataset.")
+    parser.add_argument('--dataset_path', type=str, default='~/datasets/mafaulda',
+                        help='Path to the raw MaFaulDa dataset directory.')
+    args = parser.parse_args()
+
     # Raw dataset path
-    dataset_path: str = '~/datasets/mafaulda'
+    dataset_path: str = args.dataset_path
 
     # Map the dataset
     filepaths, labels = map_dataset(dataset_path)
@@ -80,8 +86,8 @@ if __name__ == '__main__':
 
     # Print validation information to terminal
     print(f"Total mapped files: {len(filepaths)}")
-    print(f"Training samples: {len(train_paths)}")
-    print(f"Testing samples: {len(test_paths)}")
+    print(f"Training samples:   {len(train_paths)}")
+    print(f"Testing samples:    {len(test_paths)}")
 
     # Simple validation checks
     assert len(filepaths) == 1951, f"Expected 1951 files, but got {len(filepaths)}"
