@@ -165,8 +165,8 @@ Models the normal operational manifold of each fault class to generate highly di
 
 * **Weiszfeld's Geometric Median**:
   To seed each class dictionary with a highly robust normal state vector $y$ that is immune to impulse outliers, the pipeline computes the multi-dimensional geometric median of the training samples using Weiszfeld's iterative algorithm:
-  $$y = \arg\min_{z} \sum_{i=1}^{K(c)} \|x(c, i) - z\|_2$$
-  $$y^{(m+1)} = \frac{\sum_{i=1}^{K(c)} \frac{x(c, i)}{\max\left(\|x(c, i) - y^{(m)}\|_2, \epsilon\right)}}{\sum_{i=1}^{K(c)} \frac{1}{\max\left(\|x(c, i) - y^{(m)}\|_2, \epsilon\right)}}$$
+  $$y = \arg\min_{z} \sum_{i=1}^{K(c)} \Vert x(c, i) - z \Vert_2$$
+  $$y^{(m+1)} = \frac{\sum_{i=1}^{K(c)} \frac{x(c, i)}{\max\left(\Vert x(c, i) - y^{(m)}\Vert_2, \epsilon\right)}}{\sum_{i=1}^{K(c)} \frac{1}{\max\left(\Vert x(c, i) - y^{(m)}\Vert_2, \epsilon\right)}}$$
   * *Symbol Definitions*:
     * $y$: The computed 46-dimensional geometric median vector, acting as the stable anchor seed (the very first state) of the class dictionary $D(c)$.
     * $z$: Candidate geometric median vector in the 46-dimensional feature space.
@@ -174,18 +174,18 @@ Models the normal operational manifold of each fault class to generate highly di
     * $K(c)$: Total number of training samples belonging to fault class $c$ in the training set.
     * $y^{(m)}$: Approximation of the geometric median vector at iteration $m$.
     * $\epsilon$: Regularization constant to prevent division by zero ($\epsilon = 10^{-12}$).
-    * $\|\cdot\|_2$: Standard Euclidean $L_2$ norm.
+    * $\Vert\cdot\Vert_2$: Standard Euclidean $L_2$ norm.
 
 * **Wegerich Similarity Function (WSF)**:
   Computes coordinate similarity using the $L_1$ norm (Manhattan distance) to yield values bounded strictly within the range $(0.0, 1.0]$:
-  $$s(u, v) = \frac{1}{1 + \gamma \cdot \|u - v\|_1}$$
-  $$\|u - v\|_1 = \sum_{d=1}^{46} |u(d) - v(d)|$$
+  $$s(u, v) = \frac{1}{1 + \gamma \cdot \Vert u - v \Vert_1}$$
+  $$\Vert u - v \Vert_1 = \sum_{d=1}^{46} |u(d) - v(d)|$$
   * *Symbol Definitions*:
     * $s(u, v)$: Similarity score between 46-dimensional vectors $u$ and $v$.
     * $u, v$: 46-dimensional feature vectors.
     * $u(d), v(d)$: Value of the $d$-th coordinate of vectors $u$ and $v$ respectively.
     * $\gamma$: WSF sensitivity scaling parameter, optimized to $\gamma = 0.0010$ (or $\gamma = 0.0100$ in the baseline).
-    * $\|u - v\|_1$: Manhattan distance ($L_1$ norm) calculated as the sum of absolute coordinate differences.
+    * $\Vert u - v\Vert_1$: Manhattan distance ($L_1$ norm) calculated as the sum of absolute coordinate differences.
 
 * **Memory Matrix Construction via the Threshold Method**:
   Constructs a compact class dictionary $D(c)$ containing $M(c)$ representative states to prevent data redundancy and noise pollution:
@@ -207,7 +207,7 @@ For any given input feature vector $x(n)$ of sample $n$, SBM reconstructs a clea
 3. **Raw Interpolation Weights Vector $w(c, n)$**:
    $$w(c, n) = G(c)^{\dagger} \cdot A(c, n)$$
 4. **L1 Normalized Weights Vector $w'(c, n)$**:
-   $$w'(c, n) = \frac{w(c, n)}{\|w(c, n)\|_1} = \frac{w(c, n)}{\sum_{k=1}^{M(c)} |w(c, n)(k)|}$$
+   $$w'(c, n) = \frac{w(c, n)}{\Vert w(c, n)\Vert_1} = \frac{w(c, n)}{\sum_{k=1}^{M(c)} |w(c, n)(k)|}$$
 5. **Reconstructed Feature Vector $\hat{x}(n, c)$**:
    $$\hat{x}(n, c) = D(c)^T \cdot w'(c, n) = \sum_{k=1}^{M(c)} w'(c, n)(k) \cdot d(c, k)$$
 * *Symbol Definitions*:
