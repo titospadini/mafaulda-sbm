@@ -23,7 +23,21 @@ from sbm_model import construct_class_dictionary, generate_similarity_extended_f
 from rf_classifier import train_classifier, evaluate_classifier
 
 
-def run_replication():
+def run_replication() -> None:
+    """
+    Executes the replication pipeline for Experiment 3 Configuration 3 from the scientific paper.
+
+    Pedagogical Context:
+        This script implements the class-similarity feature extension methodology:
+          1. Loads the 46-dimensional hand-crafted training and testing signal features.
+          2. Reconstructs SBM dictionaries for all 6 fault classes using the optimized hyperparameters:
+             similarity threshold $\\tau = 0.85$ and L1-based WSF sensitivity $\\gamma = 0.0010$.
+          3. Generates 52-dimensional extended feature matrices by concatenating the 46 original signal
+             features with the 6 SBM class similarity scores.
+          4. Trains the Random Forest ensemble on the similarity-extended training set.
+          5. Evaluates model fidelity on the test set, outputting overall classification accuracy,
+             a detailed labeled confusion matrix, and full precision/recall metrics.
+    """
     print("="*60)
     print("   Experiment 3 Configuration 3: SBM Similarity Features    ")
     print("="*60)

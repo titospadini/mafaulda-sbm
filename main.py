@@ -49,9 +49,29 @@ from rf_classifier import train_classifier, evaluate_classifier
 from cv_tuning import run_tuning
 
 
-def run_pipeline(dataset_path: str, skip_extraction: bool, data_dir: str, use_hann: bool = False, use_fixed_entropy: bool = False):
+def run_pipeline(dataset_path: str, skip_extraction: bool, data_dir: str, use_hann: bool = False, use_fixed_entropy: bool = False) -> None:
     """
-    Executes the standard end-to-end classification pipeline.
+    Executes the standard end-to-end rotating-machine fault diagnosis classification pipeline.
+
+    Pedagogical Context:
+        This orchestrator coordinates the entire multi-stage pipeline:
+          1. Step 1: Mapping & Splitting: Reads raw files, verifies total counts, and performs a 90/10
+             stratified train/test split to guarantee representativeness.
+          2. Step 2: Feature Extraction: Runs process-parallel feature extraction (46 features per file)
+             or skips it to load cached matrices from `data/`.
+          3. Step 3: SBM Dictionary & Projection: Builds 6 class memory matrices (dictionaries) strictly
+             on the training features, then projects all training and testing features into 92-dimensional
+             extended feature matrices using best-matching SBM estimation error vectors.
+          4. Step 4: Random Forest Classification: Trains the Random Forest ensemble and outputs comprehensive
+             classification accuracy, confusion matrix, and precision/recall diagnostics.
+
+    Parameters:
+        dataset_path (str): Path to the raw directory of the MaFaulDa database.
+        skip_extraction (bool): If True, reuses pre-extracted signal features from files under `./data`
+          to speed up iterations.
+        data_dir (str): Directory where intermediate features and labels are saved.
+        use_hann (bool): Whether to apply a Hanning window and coherent gain correction to DFT signals.
+        use_fixed_entropy (bool): Whether to lock the Shannon entropy histogram range to (-10.0, 10.0).
     """
     pipeline_start = time.time()
 
@@ -180,7 +200,6 @@ def run_pipeline(dataset_path: str, skip_extraction: bool, data_dir: str, use_ha
     pipeline_elapsed = time.time() - pipeline_start
     print(f"\nEnd-to-End Pipeline completed successfully in {pipeline_elapsed:.2f} seconds!")
     print("="*60)
-
 
 
 if __name__ == '__main__':

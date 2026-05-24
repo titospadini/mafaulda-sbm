@@ -8,6 +8,7 @@ Cross-Validation grid search over gamma and tau values.
 
 import os
 import time
+from typing import List, Tuple
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score
@@ -16,12 +17,28 @@ from sbm_model import construct_class_dictionary, generate_extended_features
 from rf_classifier import train_classifier
 
 
-def run_tuning(data_dir: str):
+def run_tuning(data_dir: str) -> None:
     """
-    Performs 10-fold Stratified Cross-Validation grid search for SBM parameters.
+    Executes a 10-fold Stratified Cross-Validation grid search to optimize the SBM hyperparameters
+    (WSF sensitivity gamma and threshold tau) strictly on the training set.
+
+    Pedagogical Context:
+        Cross-Validation (CV) is the standard method for parameter tuning.
+        - 10-Fold Stratified Split: The training set is split into 10 subsets (folds). The stratification
+          preserves the relative proportions of each of the 6 fault classes in every fold, preventing
+          small classes like Normal from being excluded.
+        - Strict Manifold Modeling per Fold: In each fold iteration, the SBM dictionaries are built
+          from scratch using the fold's training portion, and extended features are calculated for both
+          fold train and fold validation portions. This ensures zero data leakage.
+        - Parameter Grid: We evaluate gamma $\\gamma \\in \\{0.0005, 0.0010, 0.0100, 0.1000\\}$ and
+          tau $\\tau \\in \\{0.75, 0.80, 0.85, 0.90\\}$.
+        - Outcome: Evaluates the optimal SBM parameter curve to find the maximum cross-validated accuracy.
 
     Parameters:
-        data_dir (str): Directory containing pre-extracted training features and labels.
+        data_dir (str): Absolute path to the directory containing pre-extracted feature files.
+
+    Raises:
+        FileNotFoundError: If the pre-extracted `X_train_features.npy` files do not exist under `data_dir`.
     """
     print("\n" + "="*60)
     print("=== STEP 5: SBM Hyperparameter Tuning (10-Fold Stratified CV) ===")
@@ -102,13 +119,21 @@ def run_tuning(data_dir: str):
     print("="*60)
 
 
-def print_results_table(results: list) -> None:
+def print_results_table(results: List[Tuple[float, float, float]]) -> None:
     """
-    Prints a beautifully formatted, aligned text-based table
-    showing all evaluated hyperparameter combinations and their accuracies.
+    Outputs a beautifully aligned ASCII text table displaying all evaluated hyperparameter combinations
+    and their corresponding 10-fold cross-validation accuracies.
+
+    Pedagogical Context:
+        Helps identify the sensitivity of the SBM parameter landscape. Presenting grid search results
+        in a structured table allows the engineer to inspect how changes in dictionary memorization bounds
+        (tau) and weight sensitivities (gamma) impact overall classifier performance.
 
     Parameters:
-        results (list): List of tuples containing (gamma, tau, mean_accuracy).
+        results (List[Tuple[float, float, float]]): List of tuples containing:
+          - gamma (float): WSF sensitivity parameter.
+          - tau (float): SBM dictionary threshold.
+          - mean_accuracy (float): Average stratified cross-validation accuracy across the 10 folds.
     """
     print("\n=================== GRID SEARCH RESULTS ===================")
     print(f"{'WSF Gamma (γ)':^15} | {'Threshold Tau (τ)':^19} | {'10-Fold CV Accuracy':^21}")

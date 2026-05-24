@@ -24,14 +24,25 @@ RANDOM_STATE = 42
 
 def load_and_normalize(filepath: str) -> np.ndarray:
     """
-    Reads the CSV file data (8 sensor columns) and normalizes each signal
-    so that they possess unit variance by dividing by their standard deviation.
+    Loads raw CSV data corresponding to a single operational scenario and normalizes
+    each of the 8 signal channels to possess unit variance.
+
+    Pedagogical Context:
+        The MaFaulDa database CSV files contain 8 column channels sampled at 50 kHz:
+          - Columns 0-5: 6 Accelerometers (measuring vibration along different axes/locations)
+          - Column 6: 1 Microphone (capturing acoustic emissions and ambient noise)
+          - Column 7: 1 Tachometer (outputting a pulse train for rotational speed estimation)
+
+        Dividing each channel by its standard deviation scales all physical sensors to
+        the exact same variance baseline. This prevents channels with large numeric scale
+        variations (like the tachometer pulses) from dominating the subsequent statistical
+        and spectral feature extractions.
 
     Parameters:
-        filepath (str): The absolute path to the CSV file.
+        filepath (str): The absolute path to the CSV file representing the operational state.
 
     Returns:
-        np.ndarray: The normalized signal matrix with unit variance columns.
+        np.ndarray: A normalized signal matrix of shape (N, 8) with unit variance columns.
     """
     # Load CSV data. It is comma-separated and has no header.
     data = np.loadtxt(filepath, delimiter=',')
@@ -52,15 +63,31 @@ def load_and_normalize(filepath: str) -> np.ndarray:
 
 def map_dataset(dataset_dir: str) -> Tuple[List[str], List[str]]:
     """
-    Traverses the dataset directory recursively, finding all CSV files and
-    mapping them to their corresponding fault label based on the top-level
-    subdirectory name directly under dataset_dir.
+    Recursively scans the MaFaulDa dataset directory to discover all operational scenario CSV files
+    and maps them to their respective mechanical fault classes.
+
+    Pedagogical Context:
+        The MaFaulDa database organizes fault categories by directory naming conventions:
+          - `normal`: Normal system operations (no faults).
+          - `imbalance`: Rotational mass imbalance faults.
+          - `horizontal-misalignment`: Shaft horizontal alignment deviations.
+          - `vertical-misalignment`: Shaft vertical alignment deviations.
+          - `overhang`: Bearing fault located on the overhang side of the rotor.
+          - `underhang`: Bearing fault located on the underhang side of the rotor.
+
+        This function identifies the correct label by taking the directory name immediately
+        nested under the dataset root directory (the top-level relative path segment).
 
     Parameters:
-        dataset_dir (str): Path to the raw dataset directory.
+        dataset_dir (str): Absolute or relative path to the raw MaFaulDa database directory.
 
     Returns:
-        Tuple[List[str], List[str]]: (filepaths list, labels list)
+        Tuple[List[str], List[str]]: A tuple containing:
+          - filepaths (List[str]): List of absolute paths to all CSV files.
+          - labels (List[str]): Matching string labels denoting the fault class for each file.
+
+    Raises:
+        FileNotFoundError: If the specified directory does not exist or is not a directory.
     """
     filepaths: List[str] = []
     labels: List[str] = []
