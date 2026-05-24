@@ -31,7 +31,7 @@ Models the normal manifold of each fault class to generate highly discriminative
 ### 3. Classification Ensemble (Step 4)
 An ensemble approach combining the engineered features with the SBM outputs.
 * **Feature Extension**: Extends the original 46 features with the 6 SBM similarity scores $s_c(x_n)$ (replicating the 3rd configuration of Experiment 3 from the paper), resulting in a 52-dimensional extended feature representation:
-  $$x_{n,\text{extended}} = \begin{bmatrix} x_n \\ s_1(x_n) \\ \vdots \\ s_6(x_n) \end{bmatrix}$$
+  $$x_{n,\text{extended}} = [x_n^T, s_1(x_n), \dots, s_6(x_n)]^T$$
 * **Ensemble Model**: Employs a Random Forest Classifier with balanced class weights to mitigate the natural scarcity of Normal operation data.
 
 ---
