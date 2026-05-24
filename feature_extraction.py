@@ -13,6 +13,7 @@ import os
 import sys
 import time
 from typing import List, Tuple
+from functools import partial
 import numpy as np
 from scipy.stats import kurtosis, entropy
 from concurrent.futures import ProcessPoolExecutor
@@ -27,7 +28,7 @@ SAMPLING_RATE = 50000  # 50 kHz
 EXPECTED_FEATURES = 46
 
 
-def extract_features_for_file(filepath: str) -> np.ndarray:
+def extract_features_for_file(filepath: str, use_hann: bool = False, use_fixed_entropy: bool = False) -> np.ndarray:
     """
     Extracts exactly 46 features from a single CSV scenario file.
 
@@ -38,6 +39,8 @@ def extract_features_for_file(filepath: str) -> np.ndarray:
 
     Parameters:
         filepath (str): The absolute path to the CSV file.
+        use_hann (bool): Whether to apply Hanning window + coherent gain correction to FFT.
+        use_fixed_entropy (bool): Whether to use a fixed histogram range (-10.0, 10.0) for Shannon entropy.
 
     Returns:
         np.ndarray: A 46-dimensional feature vector of shape (46,).
@@ -49,9 +52,16 @@ def extract_features_for_file(filepath: str) -> np.ndarray:
 
     # 2. Extract rotation frequency fr from tachometer signal (column 7)
     tacho = normalized_data[:, 7]
-    fft_tacho = np.fft.rfft(tacho)
+    if use_hann:
+        window = np.hanning(N)
+        fft_tacho = np.fft.rfft(tacho * window)
+        # Coherent gain correction: divide by window average (0.5), yielding denominator (N / 4.0)
+        mags_tacho = np.abs(fft_tacho) / (N / 4.0)
+    else:
+        fft_tacho = np.fft.rfft(tacho)
+        mags_tacho = np.abs(fft_tacho) / (N / 2.0)
+
     freqs = np.fft.rfftfreq(N, d=1/SAMPLING_RATE)
-    mags_tacho = np.abs(fft_tacho) / (N / 2.0)
 
     # Restrict search for rotation speed peak to physical range [5, 120] Hz to avoid high-frequency noise
     mask = (freqs >= 5.0) & (freqs <= 120.0)
@@ -61,8 +71,6 @@ def extract_features_for_file(filepath: str) -> np.ndarray:
     if len(masked_mags) > 0:
         peak_sub_idx = np.argmax(masked_mags)
         f_r = masked_freqs[peak_sub_idx]
-        # Find exact peak index in full frequency array
-        peak_idx = np.argmin(np.abs(freqs - f_r))
     else:
         # Fallback to global peak (excluding DC component)
         peak_idx = np.argmax(mags_tacho[1:]) + 1
@@ -75,13 +83,18 @@ def extract_features_for_file(filepath: str) -> np.ndarray:
     feature_vector.append(f_r)
 
     # Features 1-21: Spectral magnitudes of the first 7 sensor signals at fr, 2fr, 3fr
-    # We normalize DFT magnitudes by N to make them independent of sample length.
+    # We normalize DFT magnitudes to make them independent of sample length.
     # We use linear interpolation (np.interp) to extract magnitudes at exact continuous frequencies,
     # preventing discretization/bin-quantization errors.
     for col_idx in range(7):
         col_signal = normalized_data[:, col_idx]
-        fft_col = np.fft.rfft(col_signal)
-        mags_col = np.abs(fft_col) / (N / 2.0)
+        if use_hann:
+            window = np.hanning(N)
+            fft_col = np.fft.rfft(col_signal * window)
+            mags_col = np.abs(fft_col) / (N / 4.0)
+        else:
+            fft_col = np.fft.rfft(col_signal)
+            mags_col = np.abs(fft_col) / (N / 2.0)
 
         mag_1 = np.interp(f_r, freqs, mags_col)
         mag_2 = np.interp(2.0 * f_r, freqs, mags_col)
@@ -99,7 +112,11 @@ def extract_features_for_file(filepath: str) -> np.ndarray:
         mean_val = np.mean(col_signal)
 
         # Shannon Entropy (estimated using 100-bin histogram)
-        counts, _ = np.histogram(col_signal, bins=100)
+        if use_fixed_entropy:
+            counts, _ = np.histogram(col_signal, bins=100, range=(-10.0, 10.0))
+        else:
+            counts, _ = np.histogram(col_signal, bins=100)
+
         probs = counts / np.sum(counts)
         # Use scipy.stats.entropy which computes Shannon entropy (base=2 is standard)
         entropy_val = entropy(probs, base=2)
@@ -115,13 +132,15 @@ def extract_features_for_file(filepath: str) -> np.ndarray:
     return np.array(feature_vector, dtype=np.float64)
 
 
-def process_set_parallel(filepaths: List[str], set_name: str) -> np.ndarray:
+def process_set_parallel(filepaths: List[str], set_name: str, use_hann: bool = False, use_fixed_entropy: bool = False) -> np.ndarray:
     """
     Extracts features for all files in a dataset set in parallel.
 
     Parameters:
         filepaths (List[str]): List of absolute file paths to CSV files.
         set_name (str): Label describing the set (e.g. 'Training' or 'Testing').
+        use_hann (bool): Whether to apply Hanning window + coherent gain correction to FFT.
+        use_fixed_entropy (bool): Whether to use a fixed histogram range (-10.0, 10.0) for Shannon entropy.
 
     Returns:
         np.ndarray: Combined feature matrix of shape (num_samples, 46).
@@ -131,10 +150,12 @@ def process_set_parallel(filepaths: List[str], set_name: str) -> np.ndarray:
 
     start_time = time.time()
 
+    # Use functools.partial to pass the additional flags to mapped parallel process execution
+    extract_func = partial(extract_features_for_file, use_hann=use_hann, use_fixed_entropy=use_fixed_entropy)
+
     # Process files concurrently using all available CPU cores
     with ProcessPoolExecutor() as executor:
-        # map returns a generator, which we resolve to a list
-        feature_vectors = list(executor.map(extract_features_for_file, filepaths))
+        feature_vectors = list(executor.map(extract_func, filepaths))
 
     elapsed_time = time.time() - start_time
     print(f"Completed {set_name} feature extraction in {elapsed_time:.2f} seconds!")
@@ -142,4 +163,3 @@ def process_set_parallel(filepaths: List[str], set_name: str) -> np.ndarray:
     # Convert list of vectors to a 2D numpy array
     feature_matrix = np.vstack(feature_vectors)
     return feature_matrix
-

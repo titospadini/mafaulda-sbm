@@ -49,7 +49,7 @@ from rf_classifier import train_classifier, evaluate_classifier
 from cv_tuning import run_tuning
 
 
-def run_pipeline(dataset_path: str, skip_extraction: bool, data_dir: str):
+def run_pipeline(dataset_path: str, skip_extraction: bool, data_dir: str, use_hann: bool = False, use_fixed_entropy: bool = False):
     """
     Executes the standard end-to-end classification pipeline.
     """
@@ -112,8 +112,8 @@ def run_pipeline(dataset_path: str, skip_extraction: bool, data_dir: str):
         y_test = np.load(y_test_path, allow_pickle=True)
     else:
         # Extract features in parallel for training and testing sets
-        X_train = process_set_parallel(train_paths, "Training")
-        X_test = process_set_parallel(test_paths, "Testing")
+        X_train = process_set_parallel(train_paths, "Training", use_hann=use_hann, use_fixed_entropy=use_fixed_entropy)
+        X_test = process_set_parallel(test_paths, "Testing", use_hann=use_hann, use_fixed_entropy=use_fixed_entropy)
         y_train = np.array(train_labels)
         y_test = np.array(test_labels)
 
@@ -191,6 +191,10 @@ if __name__ == '__main__':
                         help='Skip parallel feature extraction if original .npy files exist in data/.')
     parser.add_argument('--tune', action='store_true',
                         help='Execute Stratified 10-Fold Cross-Validation tuning grid search instead.')
+    parser.add_argument('--use_hann', action='store_true',
+                        help='Apply Hanning window and coherent gain correction to FFT.')
+    parser.add_argument('--use_fixed_entropy', action='store_true',
+                        help='Use a fixed histogram range (-10.0, 10.0) for Shannon entropy calculation.')
 
     args = parser.parse_args()
 
@@ -210,7 +214,13 @@ if __name__ == '__main__':
         if args.tune:
             run_tuning(data_dir)
         else:
-            run_pipeline(dataset_path, args.skip_extraction, data_dir)
+            run_pipeline(
+                dataset_path,
+                args.skip_extraction,
+                data_dir,
+                use_hann=args.use_hann,
+                use_fixed_entropy=args.use_fixed_entropy
+            )
     except Exception as e:
         print(f"\n[ERROR] Pipeline failed with exception: {e}", file=sys.stderr)
         import traceback
