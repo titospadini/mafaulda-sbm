@@ -25,7 +25,7 @@ import numpy as np
 
 # Constants from the paper
 GAMMA = 0.01
-TAU = 0.9
+TAU = 0.8
 EXPECTED_ORIGINAL_FEATURES = 46
 EXPECTED_EXTENDED_FEATURES = 92
 
