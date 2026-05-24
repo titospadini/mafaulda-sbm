@@ -29,7 +29,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from sbm_model import construct_class_dictionary, generate_extended_features
 
 
-def print_results_table(results: list):
+def print_results_table(results: list) -> None:
     """
     Prints a beautifully formatted, aligned text-based table
     showing all evaluated hyperparameter combinations and their accuracies.

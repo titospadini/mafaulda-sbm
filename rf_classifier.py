@@ -20,7 +20,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
 
-def print_formatted_confusion_matrix(cm: np.ndarray, labels: list):
+def print_formatted_confusion_matrix(cm: np.ndarray, labels: list) -> None:
     """
     Prints a beautifully formatted, aligned text-based confusion matrix
     with column and row labels for professional terminal presentation.
