@@ -25,7 +25,7 @@ import numpy as np
 
 # Constants from the paper
 GAMMA = 0.01
-TAU = 0.8
+TAU = 0.9
 EXPECTED_ORIGINAL_FEATURES = 46
 EXPECTED_EXTENDED_FEATURES = 92
 
@@ -138,30 +138,35 @@ def compute_sbm_estimates(X: np.ndarray, D_c_dict: dict, gamma: float = GAMMA) -
     for class_name, D_c in D_c_dict.items():
         # D_c shape: (M_c, 46)
         # 1. Calculate matrix G_c (pairwise similarities between rows in D_c)
-        diff_D = D_c[:, np.newaxis, :] - D_c[np.newaxis, :, :]
-        l1_D = np.sum(np.abs(diff_D), axis=-1)
-        G_c = 1.0 / (1.0 + gamma * l1_D)  # shape: (M_c, M_c)
+        # Mathematical Equation: (G_c)_ij = s((D_c)_i, (D_c)_j)
+        # By utilizing broadcasting, we construct the symmetric similarity matrix
+        # using the unified Wegerich Similarity Function (WSF) and L1 norm.
+        G_c = wegerich_similarity(D_c[:, np.newaxis, :], D_c[np.newaxis, :, :], gamma=gamma)  # shape: (M_c, M_c)
 
-        # Robust pseudo-inverse computation
+        # Robust pseudo-inverse computation for the similarity matrix G_c
         G_c_pinv = np.linalg.pinv(G_c)  # shape: (M_c, M_c)
 
         # 2. Calculate matrix A_c (similarities between all samples in X and rows of D_c)
-        # X: (N, 46), D_c: (M_c, 46) -> diff_X_D shape: (N, M_c, 46)
-        diff_X_D = X[:, np.newaxis, :] - D_c[np.newaxis, :, :]
-        l1_X_D = np.sum(np.abs(diff_X_D), axis=-1)
-        A_c = 1.0 / (1.0 + gamma * l1_X_D)  # shape: (N, M_c)
+        # Mathematical Equation: (A_c)_nj = s(x_n, (D_c)_j)
+        # We compute this across all samples using the unified WSF.
+        A_c = wegerich_similarity(X[:, np.newaxis, :], D_c[np.newaxis, :, :], gamma=gamma)  # shape: (N, M_c)
 
         # 3. Calculate weight vectors: w_n_c = G_c_pinv @ a_n_c
-        # For N samples: W_c = A_c @ G_c_pinv
+        # In matrix notation for N samples: W_c = A_c @ G_c_pinv (since G_c_pinv is symmetric)
+        # Each row n of W_c corresponds to the transposed weight vector w_n_c.T of shape (M_c,)
         W_c = A_c @ G_c_pinv  # shape: (N, M_c)
 
-        # 4. Normalize weights using L1 norm (handling zero norm robustly)
+        # 4. Normalize weights using L1 norm strictly BEFORE the matrix product
+        # Mathematical Equation: w_prime_n_c = w_n_c / sum(abs(w_n_c))
+        # We compute the L1 norm of each weight vector (each row of W_c)
         w_norms = np.sum(np.abs(W_c), axis=1)  # shape: (N,)
-        w_norms = np.maximum(w_norms, 1e-12)
+        w_norms = np.maximum(w_norms, 1e-12)  # Robust lower bound to avoid division by zero
         W_c_normalized = W_c / w_norms[:, np.newaxis]  # shape: (N, M_c)
 
-        # 5. Compute final estimate: x_hat = D_c.T @ w_norm
-        # For N samples: X_hat = W_norm @ D_c
+        # 5. Compute final estimate: x_hat_n_c = D_c.T @ w_prime_n_c
+        # In matrix notation for N samples: X_hat_c = W_c_normalized @ D_c
+        # This is mathematically equivalent to D_c.T @ w_prime_n_c for each sample vector
+        # because (D_c.T @ w_prime_n_c).T = w_prime_n_c.T @ D_c = W_c_normalized[n] @ D_c
         X_hat_c = W_c_normalized @ D_c  # shape: (N, 46)
 
         estimates[class_name] = X_hat_c
@@ -210,74 +215,3 @@ def generate_extended_features(X: np.ndarray, D_c_dict: dict, gamma: float = GAM
     X_extended = np.hstack([X, error_vectors])
     return X_extended
 
-
-if __name__ == '__main__':
-    print("=== MaFaulDa Step 3: SBM Model-Matrix and Error Vector Generation ===")
-    start_time = time.time()
-
-    # Define paths
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(script_dir, 'data')
-
-    X_train_path = os.path.join(data_dir, 'X_train_features.npy')
-    X_test_path = os.path.join(data_dir, 'X_test_features.npy')
-    y_train_path = os.path.join(data_dir, 'y_train.npy')
-    y_test_path = os.path.join(data_dir, 'y_test.npy')
-
-    # Load original feature matrices and labels
-    print(f"Loading data from {data_dir}...")
-    X_train = np.load(X_train_path)
-    X_test = np.load(X_test_path)
-    y_train = np.load(y_train_path, allow_pickle=True)
-    y_test = np.load(y_test_path, allow_pickle=True)
-
-    # Basic validations
-    assert X_train.shape[1] == EXPECTED_ORIGINAL_FEATURES, f"Expected {EXPECTED_ORIGINAL_FEATURES} features, got {X_train.shape[1]}"
-    assert X_test.shape[1] == EXPECTED_ORIGINAL_FEATURES, f"Expected {EXPECTED_ORIGINAL_FEATURES} features, got {X_test.shape[1]}"
-
-    unique_classes = np.unique(y_train)
-    print(f"Loaded {len(X_train)} training samples across {len(unique_classes)} unique classes:")
-    for cls in unique_classes:
-        print(f"  - {cls}: {np.sum(y_train == cls)} training samples")
-
-    # Construct dictionaries for each unique class in the training set
-    print("\nConstructing class dictionary matrices (D_c) using Weiszfeld's and Threshold methods...")
-    D_c_dict = {}
-    for cls in unique_classes:
-        class_start_time = time.time()
-        # Filter training samples belonging to class cls
-        X_c = X_train[y_train == cls]
-        # Build dictionary
-        D_c = construct_class_dictionary(X_c, tau=TAU, gamma=GAMMA)
-        D_c_dict[cls] = D_c
-        class_elapsed = time.time() - class_start_time
-        print(f"  - Class '{cls}': built D_c shape {D_c.shape} from {len(X_c)} samples in {class_elapsed:.2f}s")
-
-    # Generate 92-dimensional extended feature matrices
-    print("\nGenerating extended 92-dimensional feature matrices (SBM Model B)...")
-    X_train_extended = generate_extended_features(X_train, D_c_dict, gamma=GAMMA)
-    X_test_extended = generate_extended_features(X_test, D_c_dict, gamma=GAMMA)
-
-    # Validations on the extended feature matrices
-    assert X_train_extended.shape == (len(X_train), EXPECTED_EXTENDED_FEATURES), f"X_train_extended shape mismatch: {X_train_extended.shape}"
-    assert X_test_extended.shape == (len(X_test), EXPECTED_EXTENDED_FEATURES), f"X_test_extended shape mismatch: {X_test_extended.shape}"
-    assert not np.isnan(X_train_extended).any(), "Found NaN values in X_train_extended!"
-    assert not np.isnan(X_test_extended).any(), "Found NaN values in X_test_extended!"
-
-    print("\nVerification Checks Passed:")
-    print(f"  X_train_extended shape: {X_train_extended.shape} (Expected: ({len(X_train)}, {EXPECTED_EXTENDED_FEATURES}))")
-    print(f"  X_test_extended shape:  {X_test_extended.shape} (Expected: ({len(X_test)}, {EXPECTED_EXTENDED_FEATURES}))")
-    print("  No NaN values detected in the extended feature matrices!")
-
-    # Save the new extended feature matrices
-    X_train_ext_path = os.path.join(data_dir, 'X_train_extended.npy')
-    X_test_ext_path = os.path.join(data_dir, 'X_test_extended.npy')
-
-    np.save(X_train_ext_path, X_train_extended)
-    np.save(X_test_ext_path, X_test_extended)
-
-    total_elapsed = time.time() - start_time
-    print(f"\nAll files saved successfully in {data_dir} in {total_elapsed:.2f} seconds!")
-    print(f"  - X_train_extended.npy ({os.path.getsize(X_train_ext_path) / 1024:.1f} KB)")
-    print(f"  - X_test_extended.npy ({os.path.getsize(X_test_ext_path) / 1024:.1f} KB)")
-    print("====================================================")
