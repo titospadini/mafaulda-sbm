@@ -68,11 +68,6 @@ def extract_features_for_file(filepath: str) -> np.ndarray:
         peak_idx = np.argmax(mags_tacho[1:]) + 1
         f_r = freqs[peak_idx]
 
-    # 3. Determine spectral bin indices for fr, 2fr, and 3fr
-    idx_1 = peak_idx
-    idx_2 = np.argmin(np.abs(freqs - (2.0 * f_r)))
-    idx_3 = np.argmin(np.abs(freqs - (3.0 * f_r)))
-
     # Assemble feature vector
     feature_vector = []
 
@@ -81,13 +76,20 @@ def extract_features_for_file(filepath: str) -> np.ndarray:
 
     # Features 1-21: Spectral magnitudes of the first 7 sensor signals at fr, 2fr, 3fr
     # We normalize DFT magnitudes by N to make them independent of sample length.
+    # We use linear interpolation (np.interp) to extract magnitudes at exact continuous frequencies,
+    # preventing discretization/bin-quantization errors.
     for col_idx in range(7):
         col_signal = normalized_data[:, col_idx]
         fft_col = np.fft.rfft(col_signal)
         mags_col = np.abs(fft_col) / N
-        feature_vector.append(mags_col[idx_1])
-        feature_vector.append(mags_col[idx_2])
-        feature_vector.append(mags_col[idx_3])
+
+        mag_1 = np.interp(f_r, freqs, mags_col)
+        mag_2 = np.interp(2.0 * f_r, freqs, mags_col)
+        mag_3 = np.interp(3.0 * f_r, freqs, mags_col)
+
+        feature_vector.append(mag_1)
+        feature_vector.append(mag_2)
+        feature_vector.append(mag_3)
 
     # Features 22-45: Statistical features (mean, Shannon entropy, kurtosis) for all 8 signals
     for col_idx in range(8):
