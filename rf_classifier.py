@@ -76,10 +76,10 @@ if __name__ == '__main__':
     print(f"  Testing set shape:  {X_test_ext.shape}")
 
     # 2. Initialize Random Forest Classifier
-    # Explicitly configure robust hyper-parameters (n_estimators=500, max_features='sqrt')
+    # Explicitly configure robust hyper-parameters (n_estimators=500, max_features='sqrt', class_weight='balanced')
     # Use random_state=42 for scientific reproducibility
-    print("\nInitializing Random Forest Classifier (n_estimators=500, max_features='sqrt', random_state=42)...")
-    clf = RandomForestClassifier(n_estimators=500, max_features='sqrt', random_state=42)
+    print("\nInitializing Random Forest Classifier (n_estimators=500, max_features='sqrt', class_weight='balanced', random_state=42)...")
+    clf = RandomForestClassifier(n_estimators=500, max_features='sqrt', class_weight='balanced', random_state=42)
 
     # 3. Train Classifier
     print("Training classifier on extended features...")
