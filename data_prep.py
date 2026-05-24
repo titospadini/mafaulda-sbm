@@ -1,9 +1,25 @@
+"""
+Data Preparation Script for MaFaulDa Dataset
+
+This script handles the initial data pipeline for reproducing the scientific paper
+on rotating-machine fault diagnosis using the MaFaulDa database.
+
+Key steps included:
+1. Mapping: Recursively reads operational scenario files (.csv) and extracts their fault label.
+2. Stratification: Performs a train/test split ensuring the original fault class proportions.
+3. Normalization: Normalizes the raw sensor signals to unit variance.
+"""
 import argparse
 import os
 from typing import List, Tuple
 
 import numpy as np
 from sklearn.model_selection import train_test_split
+
+# Configuration Constants
+EXPECTED_TOTAL_FILES = 1951
+TRAIN_TEST_SPLIT_RATIO = 0.10
+RANDOM_STATE = 42
 
 
 def load_and_normalize(filepath: str) -> np.ndarray:
@@ -24,6 +40,8 @@ def load_and_normalize(filepath: str) -> np.ndarray:
     std_devs = np.std(data, axis=0)
 
     # Avoid division by zero for any constant signals (if any exist)
+    # np.where checks the condition (std_devs == 0.0). If true, it replaces the value with 1.0,
+    # otherwise it keeps the original standard deviation.
     std_devs = np.where(std_devs == 0.0, 1.0, std_devs)
 
     # Perform unit variance normalization
@@ -57,7 +75,8 @@ def map_dataset(dataset_dir: str) -> Tuple[List[str], List[str]]:
                 abs_path = os.path.abspath(os.path.join(root, file))
                 # Get path relative to the dataset root
                 rel_path = os.path.relpath(abs_path, dataset_dir)
-                # The top-level folder name right under mafaulda/ is the first element
+                # The top-level folder name right under mafaulda/ represents the fault class (e.g., 'normal', 'imbalance').
+                # We extract it by taking the first element of the split relative path.
                 label = rel_path.split(os.sep)[0]
                 filepaths.append(abs_path)
                 labels.append(label)
@@ -80,14 +99,14 @@ if __name__ == '__main__':
     if not filepaths:
         raise ValueError(f"No CSV files found in the dataset directory: {dataset_path}")
 
-    # Perform a stratified train/test split: 90% train, 10% test
-    # strictly maintaining class proportions, random_state=42
+    # Perform a stratified train/test split to create disjoint sets for training and validation.
+    # The 'stratify' parameter strictly maintains the original class proportions.
     train_paths, test_paths, train_labels, test_labels = train_test_split(
         filepaths,
         labels,
-        test_size=0.10,
+        test_size=TRAIN_TEST_SPLIT_RATIO,
         stratify=labels,
-        random_state=42
+        random_state=RANDOM_STATE
     )
 
     # Print validation information to terminal
@@ -96,11 +115,13 @@ if __name__ == '__main__':
     print(f"Testing samples:    {len(test_paths)}")
 
     # Simple validation checks
-    if len(filepaths) != 1951:
-        print(f"Warning: Expected 1951 files for the full MaFaulDa dataset, but found {len(filepaths)}.")
+    if len(filepaths) != EXPECTED_TOTAL_FILES:
+        print(f"Warning: Expected {EXPECTED_TOTAL_FILES} files for the full MaFaulDa dataset, but found {len(filepaths)}.")
     else:
-        assert len(train_paths) == 1755, f"Expected 1755 training samples, but got {len(train_paths)}"
-        assert len(test_paths) == 196, f"Expected 196 testing samples, but got {len(test_paths)}"
+        expected_test = int(EXPECTED_TOTAL_FILES * TRAIN_TEST_SPLIT_RATIO)
+        expected_train = EXPECTED_TOTAL_FILES - expected_test
+        assert len(train_paths) == expected_train, f"Expected {expected_train} training samples, but got {len(train_paths)}"
+        assert len(test_paths) == expected_test, f"Expected {expected_test} testing samples, but got {len(test_paths)}"
         print("Full dataset verification checks passed successfully!")
 
     # Test load_and_normalize on a sample file
