@@ -51,7 +51,7 @@ def extract_features_for_file(filepath: str) -> np.ndarray:
     tacho = normalized_data[:, 7]
     fft_tacho = np.fft.rfft(tacho)
     freqs = np.fft.rfftfreq(N, d=1/SAMPLING_RATE)
-    mags_tacho = np.abs(fft_tacho) / N
+    mags_tacho = np.abs(fft_tacho) / (N / 2.0)
 
     # Restrict search for rotation speed peak to physical range [5, 120] Hz to avoid high-frequency noise
     mask = (freqs >= 5.0) & (freqs <= 120.0)
@@ -81,7 +81,7 @@ def extract_features_for_file(filepath: str) -> np.ndarray:
     for col_idx in range(7):
         col_signal = normalized_data[:, col_idx]
         fft_col = np.fft.rfft(col_signal)
-        mags_col = np.abs(fft_col) / N
+        mags_col = np.abs(fft_col) / (N / 2.0)
 
         mag_1 = np.interp(f_r, freqs, mags_col)
         mag_2 = np.interp(2.0 * f_r, freqs, mags_col)
