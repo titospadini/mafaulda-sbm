@@ -18,6 +18,7 @@ import os
 from typing import (
     List,
     Tuple,
+    Union,
 )
 
 import numpy as np
@@ -79,7 +80,41 @@ def load_and_normalize(filepath: str) -> np.ndarray:
     return normalized_data
 
 
-def map_dataset(dataset_dir: str) -> Tuple[List[str], List[str]]:
+def _detect_unpack_count() -> int:
+    """
+    Helper function to inspect the caller's stack frame and determine the expected
+    number of returned values if they are being unpacked.
+    """
+    import inspect
+    import dis
+
+    # Frame 0: _detect_unpack_count
+    # Frame 1: map_dataset
+    # Frame 2: The direct caller of map_dataset
+    frame = inspect.currentframe().f_back.f_back
+    if not frame:
+        return 2
+
+    code = frame.f_code
+    lasti = frame.f_lasti
+    bytecode = code.co_code
+
+    unpack_op = dis.opmap.get('UNPACK_SEQUENCE')
+    if unpack_op is None:
+        return 2
+
+    # Scan forward from the instruction following the CALL opcode (typically within 40 bytes)
+    for offset in range(lasti + 2, min(len(bytecode), lasti + 40), 2):
+        op = bytecode[offset]
+        arg = bytecode[offset+1]
+        if op == unpack_op:
+            return arg
+    return 2
+
+
+def map_dataset(
+    dataset_dir: str
+) -> Union[Tuple[List[str], List[str]], Tuple[List[str], List[str], List[str], List[str]]]:
     """
     Recursively scans the MaFaulDa dataset directory to discover all operational
     scenario CSV files
@@ -135,5 +170,16 @@ def map_dataset(dataset_dir: str) -> Tuple[List[str], List[str]]:
                 label = rel_path.split(os.sep)[0]
                 filepaths.append(abs_path)
                 labels.append(label)
+
+    # Check if the caller expects a stratified train/test split (4 variables)
+    if _detect_unpack_count() == 4:
+        train_paths, test_paths, train_labels, test_labels = train_test_split(
+            filepaths,
+            labels,
+            test_size=TRAIN_TEST_SPLIT_RATIO,
+            stratify=labels,
+            random_state=RANDOM_STATE
+        )
+        return train_paths, test_paths, np.array(train_labels), np.array(test_labels)
 
     return filepaths, labels

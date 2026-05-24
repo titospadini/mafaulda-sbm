@@ -58,21 +58,25 @@ mafaulda/
     └── (underhang bearing fault .csv files)
 ```
 
-### 3. Execution Commands
+### 3. Execution Options
 
-#### Running SBM Model B (Default 92-Dimensional Error Residuals)
+You can reproduce the paper's experiments either by running the modular CLI Python scripts directly, or interactively using the provided Jupyter Notebook.
+
+#### Option A: Direct CLI Scripts
+
+##### Running SBM Model B (Default 92-Dimensional Error Residuals)
 To execute the unified end-to-end Model B classification pipeline using our advanced digital signal processing (DSP) enhancements, run:
 ```bash
 python main.py --use_hann --use_fixed_entropy
 ```
 
-#### Running Experiment 3 Configuration 3 (52-Dimensional SBM Similarities)
+##### Running Experiment 3 Configuration 3 (52-Dimensional SBM Similarities)
 To execute the replication pipeline utilizing direct SBM class similarity vectors as extended features, run:
 ```bash
 python exp3_cfg3.py
 ```
 
-#### Exposing Command-Line Arguments
+##### Exposing Command-Line Arguments
 
 The pipeline exposes the following flexible arguments to control feature extraction, cross-validation, and caching:
 
@@ -81,6 +85,22 @@ The pipeline exposes the following flexible arguments to control feature extract
 * `--use_fixed_entropy`: Strictly locks the Shannon entropy histogram range to `(-10.0, 10.0)` across all files. This fixes a critical signal processing bug where dynamic-bin scaling (default behavior) distorts entropy features when signals experience sudden peak/shock impulses.
 * `--tune`: Executes a full Stratified 10-fold Cross-Validation grid search to inspect SBM hyperparameter performance over gamma ($\gamma$) and threshold tau ($\tau$).
 * `--skip_extraction`: Speeds up SBM iteration and model training loops by reusing pre-extracted features under the `./data` directory instead of parsing the 1,951 raw CSV files.
+
+#### Option B: Interactive Jupyter Notebook
+
+For an interactive, step-by-step visual walk-through of the replication pipeline, you can use the provided Jupyter Notebook. This is an entirely optional alternative to using the CLI scripts:
+
+1. Ensure Jupyter is installed in your environment:
+   ```bash
+   pip install jupyter
+   # Or using Conda
+   conda install jupyter -y
+   ```
+2. Start the notebook server and open the notebook:
+   ```bash
+   jupyter notebook notebooks/reproduce_experiments.ipynb
+   ```
+3. Execute the cells sequentially to inspect feature extraction, Weiszfeld centroid construction, memory dictionary growth, SBM residual generation, and Random Forest classification reports interactively.
 
 ---
 

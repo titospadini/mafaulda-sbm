@@ -58,7 +58,7 @@ def train_classifier(X_train: np.ndarray, y_train: np.ndarray) -> RandomForestCl
     return clf
 
 
-def evaluate_classifier(clf: RandomForestClassifier, X_test: np.ndarray, y_test: np.ndarray, y_train_labels: np.ndarray) -> np.ndarray:
+def evaluate_classifier(clf: RandomForestClassifier, X_test: np.ndarray, y_test: np.ndarray, y_train_labels: np.ndarray = None) -> np.ndarray:
     """
     Evaluates the performance of the trained Random Forest classifier on the
     test split,
@@ -98,7 +98,10 @@ def evaluate_classifier(clf: RandomForestClassifier, X_test: np.ndarray, y_test:
     print("====================================================")
 
     # Labeled Confusion Matrix
-    unique_labels = sorted(list(np.unique(y_train_labels)))
+    if y_train_labels is None:
+        unique_labels = sorted(list(clf.classes_))
+    else:
+        unique_labels = sorted(list(np.unique(y_train_labels)))
     cm = confusion_matrix(y_test, y_pred, labels=unique_labels)
     print_formatted_confusion_matrix(cm, unique_labels)
 
