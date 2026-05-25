@@ -2,6 +2,9 @@
 
 This repository contains an optimized Python implementation of the Multiclass Similarity-Based Modeling (SBM) architecture for detecting and classifying faults in rotating machines.
 
+> [!TIP]
+> **🚀 GPU-Accelerated Version Available**: A high-performance GPU-accelerated implementation of this pipeline (utilizing PyTorch and CUDA for up to 30% faster execution) is available on the [`gpu` branch](https://github.com/titospadini/mafaulda-sbm/tree/gpu). Switch to that branch to check it out!
+
 The theoretical foundation and pipeline strictly reproduce the methodology presented in the scientific paper:
 **["Improved similarity-based modeling for the classification of rotating-machine failures"](https://doi.org/10.1016/j.jfranklin.2017.07.038)**
 *Marins, M. A., Ribeiro, F. M. L., Netto, S. L., & da Silva, E. A. B. (Journal of the Franklin Institute, 2018).*
