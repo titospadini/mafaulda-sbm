@@ -257,17 +257,11 @@ An ensemble approach combining the engineered features with SBM-derived vectors.
 * **SBM Model B (Default Orchestrator)**:
   Finds the best-matching fault class $c^*$ that maximizes reconstruction similarity, computes the residual error vector $e(n)$, and appends it to $x(n)$ to yield a 92-dimensional representation:
 
-  $$
-  c^* = \arg\max_{c \in \{1, \dots, 6\}} s(x(n), \hat{x}(n, c))
-  $$
+  $$c^* = \arg\max_{c \in \{1, \dots, 6\}} s(x(n), \hat{x}(n, c))$$
 
-  $$
-  e(n) = x(n) - \hat{x}(n, c^*)
-  $$
+  $$e(n) = x(n) - \hat{x}(n, c^*)$$
 
-  $$
-  x_{\text{ext}}(n) = \begin{bmatrix} x(n) \\ e(n) \end{bmatrix}
-  $$
+  $$x_{\text{ext}}(n) = \begin{bmatrix} x(n) \\ \ e(n) \end{bmatrix}$$
 
   * *Symbol Definitions*:
     * $c^*$: Index of the class dictionary that achieves the highest reconstruction similarity to the input vector $x(n)$.
@@ -277,9 +271,7 @@ An ensemble approach combining the engineered features with SBM-derived vectors.
 * **Experiment 3 Configuration 3**:
   Directly appends the 6 SBM class similarity scores to the original 46 features, resulting in a compact 52-dimensional representation:
 
-  $$
-  x_{\text{ext}}(n) = \begin{bmatrix} x(n) \\ s(x(n), \hat{x}(n, c_1)) \\ \vdots \\ s(x(n), \hat{x}(n, c_6)) \end{bmatrix}
-  $$
+  $$x_{\text{ext}}(n) = \begin{bmatrix} x(n) \\ s(x(n), \hat{x}(n, c_1)) \\ \vdots \\ s(x(n), \hat{x}(n, c_6)) \end{bmatrix}$$
 
   * *Symbol Definitions*:
     * $s(x(n), \hat{x}(n, c_r))$: Direct WSF similarity score between the input $x(n)$ and its reconstruction under class dictionary $D(c_r)$ for $c_r \in \{c_1, \dots, c_6\}$.
