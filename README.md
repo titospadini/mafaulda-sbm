@@ -262,7 +262,7 @@ An ensemble approach combining the engineered features with SBM-derived vectors.
   $$e(n) = x(n) - \hat{x}(n, c^*)$$
 
   $$
-  x_{\text{ext}}(n) = \begin{bmatrix} x(n) \\ e(n) \end{bmatrix}
+  x_{\text{ext}}(n) = \begin{bmatrix} x(n) \cr e(n) \end{bmatrix}
   $$
 
   * *Symbol Definitions*:
@@ -274,7 +274,7 @@ An ensemble approach combining the engineered features with SBM-derived vectors.
   Directly appends the 6 SBM class similarity scores to the original 46 features, resulting in a compact 52-dimensional representation:
 
   $$
-  x_{\text{ext}}(n) = \begin{bmatrix} x(n) \\ s(x(n), \hat{x}(n, c_1)) \\ \vdots \\ s(x(n), \hat{x}(n, c_6)) \end{bmatrix}
+  x_{\text{ext}}(n) = \begin{bmatrix} x(n) \cr s(x(n), \hat{x}(n, c_1)) \cr \vdots \cr s(x(n), \hat{x}(n, c_6)) \end{bmatrix}
   $$
 
   * *Symbol Definitions*:
