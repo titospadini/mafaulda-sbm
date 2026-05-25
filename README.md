@@ -117,6 +117,7 @@ Transforms raw, high-frequency multivariate time-series signals into a condensed
   $$X_{\text{tacho}}(k) = \sum_{n=0}^{N-1} x_{\text{tacho}}(n) \cdot e^{-i \frac{2\pi \cdot k \cdot n}{N}}$$
 
   $$M_{\text{tacho}}(k) = \frac{2}{N} \cdot \left|X_{\text{tacho}}(k)\right| \quad \text{(or } \frac{4}{N} \cdot \left|X_{\text{tacho}}(k)\right| \text{ with Hanning Coherent Gain Correction)}$$
+
   $$f(\text{rot}) = \arg\max_{f(k) \in [5.0, 120.0]} M_{\text{tacho}}(k)$$
 
   * *Symbol Definitions*:
@@ -133,7 +134,9 @@ Transforms raw, high-frequency multivariate time-series signals into a condensed
 
 * **Spectral Harmonic Magnitudes Interpolation**:
   Extracts continuous peak amplitudes for the first 7 physical sensors at the fundamental rotation frequency and its first two harmonics:
+
   $$A(j, h) = \text{Interp}\left(h \cdot f(\text{rot}), f, M(j)\right), \quad \text{for } j \in \{0, \dots, 6\}, \; h \in \{1, 2, 3\}$$
+
   * *Symbol Definitions*:
     * $j$: Physical sensor channel index. $j \in \{0, \dots, 6\}$ maps to the 6 accelerometers and 1 microphone.
     * $h$: Harmonic order. $h = 1$ is the fundamental rotation frequency $(f(\text{rot}))$, $h = 2$ is the second harmonic $(2 \cdot f(\text{rot}))$, and $h = 3$ is the third harmonic $(3 \cdot f(\text{rot}))$.
@@ -144,14 +147,22 @@ Transforms raw, high-frequency multivariate time-series signals into a condensed
 
 * **Statistical Signal Descriptors**:
   Computes three statistical indicators across all 8 sensor channels (6 accelerometers, 1 microphone, and 1 tachometer) to capture baseline drift, structural complexity, and impulsive mechanical shocks:
+
   * **Arithmetic Mean**:
+
     $$\mu(j) = \frac{1}{N} \sum_{n=0}^{N-1} x(j, n)$$
+
   * **Shannon Entropy**:
     Constructs a $B$-bin histogram partition of the normalized signal amplitude. Let $c(b)$ be the sample count in the $b$-th bin. The empirical probability $p(b)$ and Shannon entropy $H(j)$ are:
+
     $$p(b) = \frac{c(b)}{\sum_{i=1}^{B} c(i)}, \quad \text{for } b \in \{1, \dots, B\}$$
+
     $$H(j) = -\sum_{b=1}^{B} p(b) \cdot \log_2 p(b)$$
+
   * **Fisher excess Kurtosis**:
+
     $$\kappa(j) = \frac{\frac{1}{N} \sum_{n=0}^{N-1} (x(j, n) - \mu(j))^4}{\left(\frac{1}{N} \sum_{n=0}^{N-1} (x(j, n) - \mu(j))^2\right)^2} - 3$$
+
   * *Symbol Definitions*:
     * $j$: Sensor channel index across all 8 available channels ($j \in \{0, \dots, 7\}$).
     * $x(j, n)$: Normalized amplitude value of sensor channel $j$ at discrete time index $n$.
@@ -168,8 +179,11 @@ Models the normal operational manifold of each fault class to generate highly di
 
 * **Weiszfeld's Geometric Median**:
   To seed each class dictionary with a highly robust normal state vector $y$ that is immune to impulse outliers, the pipeline computes the multi-dimensional geometric median of the training samples using Weiszfeld's iterative algorithm:
+
   $$y = \arg\min_{z} \sum_{i=1}^{K(c)} \Vert x(c, i) - z \Vert_2$$
+
   $$y^{(m+1)} = \frac{\sum_{i=1}^{K(c)} \frac{x(c, i)}{\max\left(\Vert x(c, i) - y^{(m)}\Vert_2, \epsilon\right)}}{\sum_{i=1}^{K(c)} \frac{1}{\max\left(\Vert x(c, i) - y^{(m)}\Vert_2, \epsilon\right)}}$$
+
   * *Symbol Definitions*:
     * $y$: The computed 46-dimensional geometric median vector, acting as the stable anchor seed (the very first state) of the class dictionary $D(c)$.
     * $z$: Candidate geometric median vector in the 46-dimensional feature space.
@@ -181,8 +195,11 @@ Models the normal operational manifold of each fault class to generate highly di
 
 * **Wegerich Similarity Function (WSF)**:
   Computes coordinate similarity using the $L_1$ norm (Manhattan distance) to yield values bounded strictly within the range $(0.0, 1.0]$:
+
   $$s(u, v) = \frac{1}{1 + \gamma \cdot \Vert u - v \Vert_1}$$
+
   $$\Vert u - v \Vert_1 = \sum_{d=1}^{46} |u(d) - v(d)|$$
+
   * *Symbol Definitions*:
     * $s(u, v)$: Similarity score between 46-dimensional vectors $u$ and $v$.
     * $u, v$: 46-dimensional feature vectors.
@@ -194,7 +211,9 @@ Models the normal operational manifold of each fault class to generate highly di
   Constructs a compact class dictionary $D(c)$ containing $M(c)$ representative states to prevent data redundancy and noise pollution:
   1. Initialize the dictionary with the robust geometric median: $D(c) = [y]$.
   2. For each candidate training vector $x(c, i) \in X(c)$, append it as a new row in $D(c)$ if and only if its similarity to all existing representative states is strictly below the threshold $\tau$:
+
      $$s(d(c, m), x(c, i)) < \tau, \quad \forall d(c, m) \in D(c)$$
+
   * *Symbol Definitions*:
     * $D(c)$: Representative state dictionary matrix for class $c$, of shape $M(c) \times 46$.
     * $X(c)$: Full set of training feature vectors of class $c$.
@@ -204,15 +223,25 @@ Models the normal operational manifold of each fault class to generate highly di
 ### 3. SBM State Estimation Module
 For any given input feature vector $x(n)$ of sample $n$, SBM reconstructs a clean estimate vector $\hat{x}(n, c)$ on the manifold of class $c$:
 1. **Pairwise Memory Similarity Matrix $G(c)$**:
+
    $$G(c)(i, k) = s(d(c, i), d(c, k))$$
+
 2. **Input-to-Memory Similarity Vector $A(c, n)$**:
+
    $$A(c, n)(k) = s(x(n), d(c, k))$$
+
 3. **Raw Interpolation Weights Vector $w(c, n)$**:
+
    $$w(c, n) = G(c)^{\dagger} \cdot A(c, n)$$
+
 4. **L1 Normalized Weights Vector $w'(c, n)$**:
+
    $$w'(c, n) = \frac{w(c, n)}{\Vert w(c, n)\Vert_1} = \frac{w(c, n)}{\sum_{k=1}^{M(c)} |w(c, n)(k)|}$$
+
 5. **Reconstructed Feature Vector $\hat{x}(n, c)$**:
+
    $$\hat{x}(n, c) = D(c)^T \cdot w'(c, n) = \sum_{k=1}^{M(c)} w'(c, n)(k) \cdot d(c, k)$$
+
 * *Symbol Definitions*:
   * $G(c)$: Symmetric pairwise similarity matrix between all representative states in $D(c)$, of shape $M(c) \times M(c)$.
   * $G(c)^{\dagger}$: Moore-Penrose pseudo-inverse of $G(c)$, ensuring stable matrix inversion even for highly collinear features.
@@ -227,9 +256,13 @@ An ensemble approach combining the engineered features with SBM-derived vectors.
 
 * **SBM Model B (Default Orchestrator)**:
   Finds the best-matching fault class $c^*$ that maximizes reconstruction similarity, computes the residual error vector $e(n)$, and appends it to $x(n)$ to yield a 92-dimensional representation:
+
   $$c^* = \arg\max_{c \in \{1, \dots, 6\}} s(x(n), \hat{x}(n, c))$$
+
   $$e(n) = x(n) - \hat{x}(n, c^*)$$
+
   $$x_{\text{ext}}(n) = \begin{bmatrix} x(n) \\ e(n) \end{bmatrix}$$
+
   * *Symbol Definitions*:
     * $c^*$: Index of the class dictionary that achieves the highest reconstruction similarity to the input vector $x(n)$.
     * $e(n)$: 46-dimensional SBM residual error vector, highlighting localized signal anomalies or structural deviations from the normal class manifold.
@@ -237,7 +270,9 @@ An ensemble approach combining the engineered features with SBM-derived vectors.
 
 * **Experiment 3 Configuration 3**:
   Directly appends the 6 SBM class similarity scores to the original 46 features, resulting in a compact 52-dimensional representation:
+
   $$x_{\text{ext}}(n) = \begin{bmatrix} x(n) \\ s(x(n), \hat{x}(n, c_1)) \\ \vdots \\ s(x(n), \hat{x}(n, c_6)) \end{bmatrix}$$
+
   * *Symbol Definitions*:
     * $s(x(n), \hat{x}(n, c_r))$: Direct WSF similarity score between the input $x(n)$ and its reconstruction under class dictionary $D(c_r)$ for $c_r \in \{c_1, \dots, c_6\}$.
     * $c_1, \dots, c_6$: The 6 unique mechanical fault classes (Normal, Imbalance, Horizontal Misalignment, Vertical Misalignment, Overhang Fault, Underhang Fault).
