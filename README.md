@@ -6,7 +6,7 @@
 
 > [!WARNING]
 > **⚠️ GPU Optimization Disclaimer**: While this implementation genuinely utilizes the GPU (CUDA) and shows clear performance improvements over the CPU version (yielding a **25% to 30% speedup** as detailed in our [Benchmark PC Specs](#-peak-performance-comparison)), the GPU usage is **not perfectly optimized**.
-> By monitoring CPU and GPU utilization, it is clear that the GPU is under-saturated and there are significant bottleneck bottlenecks (such as CPU-to-GPU memory transfer and serial preprocessing steps). This is a work in progress that requires further improvements to extract the maximum capability of the hardware. We openly welcome contributions to optimize the pipeline further!
+> By monitoring CPU and GPU utilization, it is clear that the GPU is under-saturated and there are significant bottlenecks (such as CPU-to-GPU memory transfer and serial preprocessing steps). This is a work in progress that requires further improvements to extract the maximum capability of the hardware. We openly welcome contributions to optimize the pipeline further!
 
 This repository contains an optimized Python implementation of the Multiclass Similarity-Based Modeling (SBM) architecture for detecting and classifying faults in rotating machines.
 
