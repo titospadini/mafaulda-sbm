@@ -72,6 +72,9 @@ from mafaulda.rf_classifier import (
 from mafaulda.cv_tuning import run_tuning
 
 
+from mafaulda.logging_utils import log, set_verbosity
+
+
 def run_pipeline(
     dataset_path: str,
     skip_extraction: bool,
@@ -116,16 +119,16 @@ def run_pipeline(
     """
     pipeline_start = time.time()
 
-    print("\n" + "="*60)
-    print("=== STEP 1: Dataset Mapping & Stratified Splitting ===")
-    print("="*60)
+    log("\n" + "="*60, level=1)
+    log("=== STEP 1: Dataset Mapping & Stratified Splitting ===", level=1)
+    log("="*60, level=1)
 
     # 1. Map the dataset
     filepaths, labels = map_dataset(dataset_path)
     if not filepaths:
         raise ValueError(f"No CSV files found in the dataset directory: {dataset_path}")
 
-    print(f"Total mapped files: {len(filepaths)}")
+    log(f"Total mapped files: {len(filepaths)}", level=2)
 
     # Perform stratified split
     train_paths, test_paths, train_labels, test_labels = train_test_split(
@@ -136,29 +139,29 @@ def run_pipeline(
         random_state=RANDOM_STATE
     )
 
-    print(f"Training samples:   {len(train_paths)}")
-    print(f"Testing samples:    {len(test_paths)}")
+    log(f"Training samples:   {len(train_paths)}", level=1)
+    log(f"Testing samples:    {len(test_paths)}", level=1)
 
     # Validation checks
     if len(filepaths) != EXPECTED_TOTAL_FILES:
-        print(f"Warning: Expected {EXPECTED_TOTAL_FILES} files for the full MaFaulDa dataset, but found {len(filepaths)}.")
+        log(f"Warning: Expected {EXPECTED_TOTAL_FILES} files for the full MaFaulDa dataset, but found {len(filepaths)}.", level=1)
     else:
         expected_test = int(EXPECTED_TOTAL_FILES * TRAIN_TEST_SPLIT_RATIO)
         expected_train = EXPECTED_TOTAL_FILES - expected_test
         assert abs(len(train_paths) - expected_train) <= 5, f"Expected ~{expected_train} train samples, got {len(train_paths)}"
         assert abs(len(test_paths) - expected_test) <= 5, f"Expected ~{expected_test} test samples, got {len(test_paths)}"
-        print("Full dataset verification checks passed successfully!")
+        log("Full dataset verification checks passed successfully!", level=3)
 
     # Check sample file
     if len(train_paths) > 0:
         sample_path = train_paths[0]
         norm_data = load_and_normalize(sample_path)
         assert norm_data.ndim == 2 and norm_data.shape[1] == 8, f"Expected shape (N, 8), got {norm_data.shape}"
-        print("Sample signal loaded and normalized successfully.")
+        log("Sample signal loaded and normalized successfully.", level=3)
 
-    print("\n" + "="*60)
-    print("=== STEP 2: Hand-Crafted Feature Extraction ===")
-    print("="*60)
+    log("\n" + "="*60, level=1)
+    log("=== STEP 2: Hand-Crafted Feature Extraction ===", level=1)
+    log("="*60, level=1)
 
     X_train_path = os.path.join(data_dir, 'X_train_features.npy')
     X_test_path = os.path.join(data_dir, 'X_test_features.npy')
@@ -166,7 +169,7 @@ def run_pipeline(
     y_test_path = os.path.join(data_dir, 'y_test.npy')
 
     if skip_extraction and os.path.exists(X_train_path) and os.path.exists(X_test_path):
-        print("Feature extraction skipped. Loading pre-extracted features from data/...")
+        log("Feature extraction skipped. Loading pre-extracted features from data/...", level=2)
         X_train = np.load(X_train_path)
         X_test = np.load(X_test_path)
         y_train = np.load(y_train_path, allow_pickle=True)
@@ -183,21 +186,21 @@ def run_pipeline(
         np.save(X_test_path, X_test)
         np.save(y_train_path, y_train)
         np.save(y_test_path, y_test)
-        print(f"Features saved successfully in {data_dir}.")
+        log(f"Features saved successfully in {data_dir}.", level=2)
 
     # Validation checks on features
     assert X_train.shape == (len(train_paths), EXPECTED_FEATURES), f"X_train shape mismatch: {X_train.shape}"
     assert X_test.shape == (len(test_paths), EXPECTED_FEATURES), f"X_test shape mismatch: {X_test.shape}"
     assert not np.isnan(X_train).any(), "Found NaN values in X_train!"
     assert not np.isnan(X_test).any(), "Found NaN values in X_test!"
-    print("Feature matrices validated. Dimensions and integrity verified.")
+    log("Feature matrices validated. Dimensions and integrity verified.", level=3)
 
-    print("\n" + "="*60)
-    print("=== STEP 3: SBM Dictionary Construction & Feature Extension ===")
-    print("="*60)
+    log("\n" + "="*60, level=1)
+    log("=== STEP 3: SBM Dictionary Construction & Feature Extension ===", level=1)
+    log("="*60, level=1)
 
     unique_classes = np.unique(y_train)
-    print(f"Constructing class dictionary matrices (D_c) using Weiszfeld's and Threshold methods for {len(unique_classes)} classes...")
+    log(f"Constructing class dictionary matrices (D_c) using Weiszfeld's and Threshold methods for {len(unique_classes)} classes...", level=1)
 
     D_c_dict = {}
     for cls in unique_classes:
@@ -207,9 +210,9 @@ def run_pipeline(
         D_c = construct_class_dictionary(X_c, tau=TAU, gamma=GAMMA)
         D_c_dict[cls] = D_c
         class_elapsed = time.time() - class_start_time
-        print(f"  - Class '{cls}': built D_c shape {D_c.shape} from {len(X_c)} samples in {class_elapsed:.2f}s")
+        log(f"  - Class '{cls}': built D_c shape {D_c.shape} from {len(X_c)} samples in {class_elapsed:.2f}s", level=2)
 
-    print("\nGenerating extended 92-dimensional feature matrices (SBM Model B)...")
+    log("\nGenerating extended 92-dimensional feature matrices (SBM Model B)...", level=1)
     X_train_extended = generate_extended_features(X_train, D_c_dict, gamma=GAMMA)
     X_test_extended = generate_extended_features(X_test, D_c_dict, gamma=GAMMA)
 
@@ -224,23 +227,23 @@ def run_pipeline(
     assert X_test_extended.shape == (len(X_test), EXPECTED_EXTENDED_FEATURES), f"X_test_extended shape mismatch: {X_test_extended.shape}"
     assert not np.isnan(X_train_extended).any(), "Found NaN values in X_train_extended!"
     assert not np.isnan(X_test_extended).any(), "Found NaN values in X_test_extended!"
-    print("Extended features generated and validated successfully.")
+    log("Extended features generated and validated successfully.", level=3)
 
-    print("\n" + "="*60)
-    print("=== STEP 4: Random Forest Classification ===")
-    print("="*60)
+    log("\n" + "="*60, level=1)
+    log("=== STEP 4: Random Forest Classification ===", level=1)
+    log("="*60, level=1)
 
-    print("Initializing and training Random Forest Classifier on extended features...")
+    log("Initializing and training Random Forest Classifier on extended features...", level=1)
     train_start = time.time()
     clf = train_classifier(X_train_extended, y_train)
-    print(f"Training completed in {time.time() - train_start:.2f} seconds.")
+    log(f"Training completed in {time.time() - train_start:.2f} seconds.", level=2)
 
-    print("Evaluating classifier...")
+    log("Evaluating classifier...", level=2)
     evaluate_classifier(clf, X_test_extended, y_test, y_train)
 
     pipeline_elapsed = time.time() - pipeline_start
-    print(f"\nEnd-to-End Pipeline completed successfully in {pipeline_elapsed:.2f} seconds!")
-    print("="*60)
+    log(f"\nEnd-to-End Pipeline completed successfully in {pipeline_elapsed:.2f} seconds!", level=2)
+    log("="*60, level=1)
 
 
 if __name__ == '__main__':
@@ -255,8 +258,19 @@ if __name__ == '__main__':
                         help='Apply Hanning window and coherent gain correction to FFT.')
     parser.add_argument('--use_fixed_entropy', action='store_true',
                         help='Use a fixed histogram range (-10.0, 10.0) for Shannon entropy calculation.')
+    parser.add_argument('-v', '--verbose', action='count', default=0,
+                        help='Increase verbosity level (-v for detailed, -vv for debug).')
+    parser.add_argument('--verbosity', type=int, choices=[0, 1, 2, 3], default=None,
+                        help='Directly set verbosity level (0=silent, 1=default, 2=detailed, 3=debug).')
 
     args = parser.parse_args()
+
+    # Determine verbosity level
+    if args.verbosity is not None:
+        verbosity_level = args.verbosity
+    else:
+        verbosity_level = 1 + args.verbose
+    set_verbosity(verbosity_level)
 
     # Resolve absolute paths
     dataset_path = os.path.abspath(os.path.expanduser(args.dataset_path))
@@ -264,11 +278,11 @@ if __name__ == '__main__':
     data_dir = os.path.join(script_dir, 'data')
     os.makedirs(data_dir, exist_ok=True)
 
-    print("="*60)
-    print("     Rotating-Machine Fault Diagnosis Unified Pipeline      ")
-    print("="*60)
-    print(f"Configured Dataset Path: {dataset_path}")
-    print(f"Target Data Directory:   {data_dir}")
+    log("="*60, level=1)
+    log("     Rotating-Machine Fault Diagnosis Unified Pipeline      ", level=1)
+    log("="*60, level=1)
+    log(f"Configured Dataset Path: {dataset_path}", level=2)
+    log(f"Target Data Directory:   {data_dir}", level=2)
 
     try:
         if args.tune:
@@ -282,7 +296,8 @@ if __name__ == '__main__':
                 use_fixed_entropy=args.use_fixed_entropy
             )
     except Exception as e:
-        print(f"\n[ERROR] Pipeline failed with exception: {e}", file=sys.stderr)
+        log(f"\n[ERROR] Pipeline failed with exception: {e}", level=0, file=sys.stderr)
         import traceback
-        traceback.print_exc()
+        if verbosity_level > 0:
+            traceback.print_exc()
         sys.exit(1)

@@ -38,6 +38,8 @@ from mafaulda.data_prep import (
     RANDOM_STATE,
 )
 
+from mafaulda.logging_utils import log
+
 # Constants
 SAMPLING_RATE = 50000  # 50 kHz
 EXPECTED_FEATURES = 46
@@ -242,7 +244,7 @@ def process_set_parallel(
         the extracted features.
     """
     total_files = len(filepaths)
-    print(f"\nStarting feature extraction for {set_name} set ({total_files} samples) in parallel...")
+    log(f"\nStarting feature extraction for {set_name} set ({total_files} samples) in parallel...", level=1)
 
     start_time = time.time()
 
@@ -255,7 +257,7 @@ def process_set_parallel(
         feature_vectors = list(executor.map(extract_func, filepaths))
 
     elapsed_time = time.time() - start_time
-    print(f"Completed {set_name} feature extraction in {elapsed_time:.2f} seconds!")
+    log(f"Completed {set_name} feature extraction in {elapsed_time:.2f} seconds!", level=2)
 
     # Convert list of vectors to a 2D numpy array
     feature_matrix = np.vstack(feature_vectors)

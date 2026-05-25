@@ -16,6 +16,8 @@ from sklearn.metrics import (
     classification_report,
 )
 
+from mafaulda.logging_utils import log
+
 
 def train_classifier(
     X_train: np.ndarray,
@@ -101,10 +103,10 @@ def evaluate_classifier(
     y_pred = clf.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
 
-    print("\n================ EVALUATION RESULTS ================")
-    print(f"Overall Classification Accuracy: {accuracy * 100.0:.2f}%")
-    print(f"Expected Accuracy from Paper:   ~98.49%")
-    print("====================================================")
+    log("\n================ EVALUATION RESULTS ================", level=1)
+    log(f"Overall Classification Accuracy: {accuracy * 100.0:.2f}%", level=1)
+    log(f"Expected Accuracy from Paper:   ~98.49%", level=1)
+    log("====================================================", level=1)
 
     # Labeled Confusion Matrix
     if y_train_labels is None:
@@ -115,8 +117,8 @@ def evaluate_classifier(
     print_formatted_confusion_matrix(cm, unique_labels)
 
     # Classification Report
-    print("\n--- CLASSIFICATION REPORT ---")
-    print(classification_report(y_test, y_pred, labels=unique_labels))
+    log("\n--- CLASSIFICATION REPORT ---", level=1)
+    log(classification_report(y_test, y_pred, labels=unique_labels), level=1)
 
     return y_pred
 
@@ -150,12 +152,12 @@ def print_formatted_confusion_matrix(
     col_width = max(max_label_len, 8)
 
     # 1. Print Header Row (Predicted Classes)
-    print("\n--- CONFUSION MATRIX (True \\ Predicted) ---")
+    log("\n--- CONFUSION MATRIX (True \\ Predicted) ---", level=1)
     header = f"{'True Class':<{max_label_len}} |"
     for lbl in labels:
         header += f" {lbl:^{col_width}} |"
-    print(header)
-    print("-" * len(header))
+    log(header, level=1)
+    log("-" * len(header), level=1)
 
     # 2. Print Rows
     for i in range(num_classes):
@@ -163,5 +165,5 @@ def print_formatted_confusion_matrix(
         for j in range(num_classes):
             cell_val = cm[i, j]
             row_str += f" {cell_val:^{col_width}} |"
-        print(row_str)
-    print("-" * len(header))
+        log(row_str, level=1)
+    log("-" * len(header), level=1)

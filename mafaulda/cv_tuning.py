@@ -26,6 +26,7 @@ from mafaulda.sbm_model import (
 )
 
 from mafaulda.rf_classifier import train_classifier
+from mafaulda.logging_utils import log
 
 
 def run_tuning(data_dir: str) -> None:
@@ -61,9 +62,9 @@ def run_tuning(data_dir: str) -> None:
         FileNotFoundError: If the pre-extracted `X_train_features.npy` files do
         not exist under `data_dir`.
     """
-    print("\n" + "="*60)
-    print("=== STEP 5: SBM Hyperparameter Tuning (10-Fold Stratified CV) ===")
-    print("="*60)
+    log("\n" + "="*60, level=1)
+    log("=== STEP 5: SBM Hyperparameter Tuning (10-Fold Stratified CV) ===", level=1)
+    log("="*60, level=1)
 
     X_train_path = os.path.join(data_dir, 'X_train_features.npy')
     y_train_path = os.path.join(data_dir, 'y_train.npy')
@@ -71,14 +72,14 @@ def run_tuning(data_dir: str) -> None:
     if not os.path.exists(X_train_path) or not os.path.exists(y_train_path):
         raise FileNotFoundError("Training features not found! Please run the pipeline first to generate them.")
 
-    print(f"Loading training features from {data_dir}...")
+    log(f"Loading training features from {data_dir}...", level=2)
     X_train = np.load(X_train_path)
     y_train = np.load(y_train_path, allow_pickle=True)
 
-    print(f"  Training features shape: {X_train.shape}")
-    print(f"  Training labels shape:   {y_train.shape}")
+    log(f"  Training features shape: {X_train.shape}", level=3)
+    log(f"  Training labels shape:   {y_train.shape}", level=3)
 
-    print("\nSetting up 10-fold Stratified Cross-Validation (random_state=42)...")
+    log("\nSetting up 10-fold Stratified Cross-Validation (random_state=42)...", level=2)
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
 
     # Grid search parameters
@@ -91,7 +92,7 @@ def run_tuning(data_dir: str) -> None:
     for gamma in gammas:
         for tau in taus:
             comb_start = time.time()
-            print(f"\nEvaluating combination: gamma={gamma}, tau={tau}...")
+            log(f"\nEvaluating combination: gamma={gamma}, tau={tau}...", level=2)
             fold_accuracies = []
 
             for fold, (train_idx, val_idx) in enumerate(skf.split(X_train, y_train)):
@@ -120,10 +121,10 @@ def run_tuning(data_dir: str) -> None:
 
             mean_acc = np.mean(fold_accuracies)
             results.append((gamma, tau, mean_acc))
-            print(f"  -> Mean 10-Fold CV Accuracy: {mean_acc * 100.0:.2f}% (computed in {time.time() - comb_start:.2f}s)")
+            log(f"  -> Mean 10-Fold CV Accuracy: {mean_acc * 100.0:.2f}% (computed in {time.time() - comb_start:.2f}s)", level=2)
 
     grid_elapsed = time.time() - grid_start_time
-    print(f"\nGrid search completed in {grid_elapsed:.2f} seconds.")
+    log(f"\nGrid search completed in {grid_elapsed:.2f} seconds.", level=2)
 
     # Sort results
     results.sort(key=lambda x: x[2], reverse=True)
@@ -132,13 +133,13 @@ def run_tuning(data_dir: str) -> None:
     # Print table
     print_results_table(results)
 
-    print("\n" + "="*52)
-    print("================== OPTIMAL CONFIGURATION ==================")
-    print(f"Best WSF Gamma (γ):       {best_gamma:.4f}")
-    print(f"Best Threshold Tau (τ):   {best_tau:.2f}")
-    print(f"Maximum CV Accuracy:      {best_acc * 100.0:.2f}%")
-    print("="*52)
-    print("="*60)
+    log("\n" + "="*52, level=1)
+    log("================== OPTIMAL CONFIGURATION ==================", level=1)
+    log(f"Best WSF Gamma (γ):       {best_gamma:.4f}", level=1)
+    log(f"Best Threshold Tau (τ):   {best_tau:.2f}", level=1)
+    log(f"Maximum CV Accuracy:      {best_acc * 100.0:.2f}%", level=1)
+    log("="*52, level=1)
+    log("="*60, level=1)
 
 
 def print_results_table(
@@ -164,10 +165,10 @@ def print_results_table(
           - mean_accuracy (float): Average stratified cross-validation accuracy
             across the 10 folds.
     """
-    print("\n=================== GRID SEARCH RESULTS ===================")
-    print(f"{'WSF Gamma (γ)':^15} | {'Threshold Tau (τ)':^19} | {'10-Fold CV Accuracy':^21}")
-    print("-" * 63)
+    log("\n=================== GRID SEARCH RESULTS ===================", level=1)
+    log(f"{'WSF Gamma (γ)':^15} | {'Threshold Tau (τ)':^19} | {'10-Fold CV Accuracy':^21}", level=1)
+    log("-" * 63, level=1)
     for gamma, tau, mean_acc in results:
         acc_pct = mean_acc * 100.0
-        print(f"{gamma:^15.4f} | {tau:^19.2f} | {acc_pct:^20.2f}%")
-    print("===========================================================")
+        log(f"{gamma:^15.4f} | {tau:^19.2f} | {acc_pct:^20.2f}%", level=1)
+    log("===========================================================", level=1)

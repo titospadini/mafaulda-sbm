@@ -36,6 +36,10 @@ from mafaulda.rf_classifier import (
 )
 
 
+import argparse
+from mafaulda.logging_utils import log, set_verbosity
+
+
 def run_replication() -> None:
     """
     Executes the replication pipeline for Experiment 3 Configuration 3 from the
@@ -60,9 +64,9 @@ def run_replication() -> None:
              a detailed labeled confusion matrix, and full precision/recall
              metrics.
     """
-    print("="*60)
-    print("   Experiment 3 Configuration 3: SBM Similarity Features    ")
-    print("="*60)
+    log("="*60, level=1)
+    log("   Experiment 3 Configuration 3: SBM Similarity Features    ", level=1)
+    log("="*60, level=1)
 
     # Define paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -74,14 +78,14 @@ def run_replication() -> None:
     y_test_path = os.path.join(data_dir, 'y_test.npy')
 
     # 1. Load original feature matrices and labels
-    print(f"Loading features from {data_dir}...")
+    log(f"Loading features from {data_dir}...", level=2)
     X_train = np.load(X_train_path)
     X_test = np.load(X_test_path)
     y_train = np.load(y_train_path, allow_pickle=True)
     y_test = np.load(y_test_path, allow_pickle=True)
 
-    print(f"  Training set size: {len(X_train)} samples")
-    print(f"  Testing set size:  {len(X_test)} samples")
+    log(f"  Training set size: {len(X_train)} samples", level=1)
+    log(f"  Testing set size:  {len(X_test)} samples", level=1)
 
     # 2. Build SBM dictionaries using Weiszfeld's and Threshold methods
     # Optimal parameters: tau = 0.85, gamma = 0.0010
@@ -89,7 +93,7 @@ def run_replication() -> None:
     gamma = 0.0010
     unique_classes = np.unique(y_train)
 
-    print(f"\nBuilding class dictionaries with optimal SBM parameters (tau={tau}, gamma={gamma})...")
+    log(f"\nBuilding class dictionaries with optimal SBM parameters (tau={tau}, gamma={gamma})...", level=1)
     D_c_dict = {}
     for cls in unique_classes:
         class_start_time = time.time()
@@ -97,35 +101,57 @@ def run_replication() -> None:
         # Construct dictionary
         D_c = construct_class_dictionary(X_c, tau=tau, gamma=gamma)
         D_c_dict[cls] = D_c
-        print(f"  - Class '{cls}': built D_c shape {D_c.shape} from {len(X_c)} samples in {time.time() - class_start_time:.2f}s")
+        log(f"  - Class '{cls}': built D_c shape {D_c.shape} from {len(X_c)} samples in {time.time() - class_start_time:.2f}s", level=2)
 
     # 3. Generate 52-dimensional similarity extended feature matrices
-    print("\nGenerating extended 52-dimensional feature matrices (SBM similarity scores)...")
+    log("\nGenerating extended 52-dimensional feature matrices (SBM similarity scores)...", level=1)
     X_train_extended_sim = generate_similarity_extended_features(X_train, D_c_dict, gamma=gamma)
     X_test_extended_sim = generate_similarity_extended_features(X_test, D_c_dict, gamma=gamma)
 
-    print(f"  X_train_extended_sim shape: {X_train_extended_sim.shape} (Expected: ({len(X_train)}, 52))")
-    print(f"  X_test_extended_sim shape:  {X_test_extended_sim.shape} (Expected: ({len(X_test)}, 52))")
+    log(f"  X_train_extended_sim shape: {X_train_extended_sim.shape} (Expected: ({len(X_train)}, 52))", level=3)
+    log(f"  X_test_extended_sim shape:  {X_test_extended_sim.shape} (Expected: ({len(X_test)}, 52))", level=3)
 
     # 4. Save new extended feature matrices
     X_train_ext_path = os.path.join(data_dir, 'X_train_extended_sim.npy')
     X_test_ext_path = os.path.join(data_dir, 'X_test_extended_sim.npy')
     np.save(X_train_ext_path, X_train_extended_sim)
     np.save(X_test_ext_path, X_test_extended_sim)
-    print(f"\nNew extended matrices saved successfully to data/:")
-    print(f"  - X_train_extended_sim.npy ({os.path.getsize(X_train_ext_path) / 1024:.1f} KB)")
-    print(f"  - X_test_extended_sim.npy ({os.path.getsize(X_test_ext_path) / 1024:.1f} KB)")
+    log(f"\nNew extended matrices saved successfully to data/:", level=2)
+    log(f"  - X_train_extended_sim.npy ({os.path.getsize(X_train_ext_path) / 1024:.1f} KB)", level=2)
+    log(f"  - X_test_extended_sim.npy ({os.path.getsize(X_test_ext_path) / 1024:.1f} KB)", level=2)
 
     # 5. Train and evaluate the Random Forest Classifier per se
-    print("\nTraining Random Forest Classifier on SBM similarity extended features...")
+    log("\nTraining Random Forest Classifier on SBM similarity extended features...", level=1)
     train_start = time.time()
     clf = train_classifier(X_train_extended_sim, y_train)
-    print(f"Training completed in {time.time() - train_start:.2f} seconds.")
+    log(f"Training completed in {time.time() - train_start:.2f} seconds.", level=2)
 
-    print("Evaluating classifier on testing set...")
+    log("Evaluating classifier on testing set...", level=2)
     evaluate_classifier(clf, X_test_extended_sim, y_test, y_train)
-    print("="*60)
+    log("="*60, level=1)
 
 
 if __name__ == '__main__':
-    run_replication()
+    parser = argparse.ArgumentParser(description="Replication Script for Experiment 3 Configuration 3 SBM Similarity Features.")
+    parser.add_argument('-v', '--verbose', action='count', default=0,
+                        help='Increase verbosity level (-v for detailed, -vv for debug).')
+    parser.add_argument('--verbosity', type=int, choices=[0, 1, 2, 3], default=None,
+                        help='Directly set verbosity level (0=silent, 1=default, 2=detailed, 3=debug).')
+
+    args = parser.parse_args()
+
+    # Determine verbosity level
+    if args.verbosity is not None:
+        verbosity_level = args.verbosity
+    else:
+        verbosity_level = 1 + args.verbose
+    set_verbosity(verbosity_level)
+
+    try:
+        run_replication()
+    except Exception as e:
+        log(f"\n[ERROR] Replication script failed with exception: {e}", level=0, file=sys.stderr)
+        import traceback
+        if verbosity_level > 0:
+            traceback.print_exc()
+        sys.exit(1)
