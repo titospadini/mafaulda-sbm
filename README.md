@@ -113,9 +113,12 @@ Transforms raw, high-frequency multivariate time-series signals into a condensed
 
 * **Shaft Rotation Frequency Estimation via Tachometer DFT**:
   To find the mechanical rotation frequency $f(\text{rot})$, the pipeline computes the Discrete Fourier Transform (DFT) of the tachometer pulse train signal $x_{\text{tacho}}(n)$ and extracts the physical magnitude spectrum:
+
   $$X_{\text{tacho}}(k) = \sum_{n=0}^{N-1} x_{\text{tacho}}(n) \cdot e^{-i \frac{2\pi \cdot k \cdot n}{N}}$$
+
   $$M_{\text{tacho}}(k) = \frac{2}{N} \cdot \left|X_{\text{tacho}}(k)\right| \quad \text{(or } \frac{4}{N} \cdot \left|X_{\text{tacho}}(k)\right| \text{ with Hanning Coherent Gain Correction)}$$
   $$f(\text{rot}) = \arg\max_{f(k) \in [5.0, 120.0]} M_{\text{tacho}}(k)$$
+
   * *Symbol Definitions*:
     * $x(n)$: The complete 46-dimensional hand-crafted feature vector extracted for sample scenario $n$.
     * $x_{\text{tacho}}(n)$: The normalized tachometer time-series signal amplitude at discrete sample step $n$.
