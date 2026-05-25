@@ -114,11 +114,17 @@ Transforms raw, high-frequency multivariate time-series signals into a condensed
 * **Shaft Rotation Frequency Estimation via Tachometer DFT**:
   To find the mechanical rotation frequency $f(\text{rot})$, the pipeline computes the Discrete Fourier Transform (DFT) of the tachometer pulse train signal $x_{\text{tacho}}(n)$ and extracts the physical magnitude spectrum:
 
-  $$X_{\text{tacho}}(k) = \sum_{n=0}^{N-1} x_{\text{tacho}}(n) \cdot e^{-i \frac{2\pi \cdot k \cdot n}{N}}$$
+$$
+\large X_{\text{tacho}}(k) = \sum_{n=0}^{N-1} x_{\text{tacho}}(n) \cdot e^{-i \dfrac{2\pi \cdot k \cdot n}{N}}
+$$
 
-  $$M_{\text{tacho}}(k) = \frac{2}{N} \cdot \left|X_{\text{tacho}}(k)\right| \quad \text{(or } \frac{4}{N} \cdot \left|X_{\text{tacho}}(k)\right| \text{ with Hanning Coherent Gain Correction)}$$
+$$
+\large M_{\text{tacho}}(k) = \dfrac{2}{N} \cdot \left|X_{\text{tacho}}(k)\right| \quad \text{(or } \dfrac{4}{N} \cdot \left|X_{\text{tacho}}(k)\right| \text{ with Hanning Coherent Gain Correction)}
+$$
 
-  $$f(\text{rot}) = \arg\max_{f(k) \in [5.0, 120.0]} M_{\text{tacho}}(k)$$
+$$
+\large f(\text{rot}) = \arg\max_{f(k) \in [5.0, 120.0]} M_{\text{tacho}}(k)
+$$
 
   * *Symbol Definitions*:
     * $x(n)$: The complete 46-dimensional hand-crafted feature vector extracted for sample scenario $n$.
@@ -128,14 +134,16 @@ Transforms raw, high-frequency multivariate time-series signals into a condensed
     * $k$: Discrete frequency-domain bin index ($k \in \{0, \dots, N/2\}$).
     * $X_{\text{tacho}}(k)$: Complex-valued Fourier coefficient representing the tachometer signal at frequency bin $k$.
     * $M_{\text{tacho}}(k)$: Physical amplitude spectrum value at frequency bin $k$.
-    * $f(k)$: Discrete frequency in Hertz corresponding to bin $k$, calculated as $f(k) = \frac{k \cdot f_s}{N}$.
+    * $f(k)$: Discrete frequency in Hertz corresponding to bin $k$, calculated as $f(k) = \dfrac{k \cdot f_s}{N}$.
     * $f_s$: Signal sampling rate ($f_s = 50,000 \text{ Hz}$).
     * $f(\text{rot})$: Estimated mechanical shaft rotation frequency, constrained strictly to the physically plausible range $[5.0, 120.0] \text{ Hz}$ to bypass high-frequency electrical noise and low-frequency DC drift.
 
 * **Spectral Harmonic Magnitudes Interpolation**:
   Extracts continuous peak amplitudes for the first 7 physical sensors at the fundamental rotation frequency and its first two harmonics:
 
-  $$A(j, h) = \text{Interp}\left(h \cdot f(\text{rot}), f, M(j)\right), \quad \text{for } j \in \{0, \dots, 6\}, \; h \in \{1, 2, 3\}$$
+$$
+\large A(j, h) = \text{Interp}\left(h \cdot f(\text{rot}), f, M(j)\right), \quad \text{for } j \in \{0, \dots, 6\}, \; h \in \{1, 2, 3\}
+$$
 
   * *Symbol Definitions*:
     * $j$: Physical sensor channel index. $j \in \{0, \dots, 6\}$ maps to the 6 accelerometers and 1 microphone.
@@ -150,18 +158,26 @@ Transforms raw, high-frequency multivariate time-series signals into a condensed
 
   * **Arithmetic Mean**:
 
-    $$\mu(j) = \frac{1}{N} \sum_{n=0}^{N-1} x(j, n)$$
+$$
+\large \mu(j) = \dfrac{1}{N} \sum_{n=0}^{N-1} x(j, n)
+$$
 
   * **Shannon Entropy**:
     Constructs a $B$-bin histogram partition of the normalized signal amplitude. Let $c(b)$ be the sample count in the $b$-th bin. The empirical probability $p(b)$ and Shannon entropy $H(j)$ are:
 
-    $$p(b) = \frac{c(b)}{\sum_{i=1}^{B} c(i)}, \quad \text{for } b \in \{1, \dots, B\}$$
+$$
+\large p(b) = \dfrac{c(b)}{\sum_{i=1}^{B} c(i)}, \quad \text{for } b \in \{1, \dots, B\}
+$$
 
-    $$H(j) = -\sum_{b=1}^{B} p(b) \cdot \log_2 p(b)$$
+$$
+\large H(j) = -\sum_{b=1}^{B} p(b) \cdot \log_2 p(b)
+$$
 
   * **Fisher excess Kurtosis**:
 
-    $$\kappa(j) = \frac{\frac{1}{N} \sum_{n=0}^{N-1} (x(j, n) - \mu(j))^4}{\left(\frac{1}{N} \sum_{n=0}^{N-1} (x(j, n) - \mu(j))^2\right)^2} - 3$$
+$$
+\large \kappa(j) = \dfrac{\dfrac{1}{N} \sum_{n=0}^{N-1} (x(j, n) - \mu(j))^4}{\left(\dfrac{1}{N} \sum_{n=0}^{N-1} (x(j, n) - \mu(j))^2\right)^2} - 3
+$$
 
   * *Symbol Definitions*:
     * $j$: Sensor channel index across all 8 available channels ($j \in \{0, \dots, 7\}$).
@@ -180,9 +196,13 @@ Models the normal operational manifold of each fault class to generate highly di
 * **Weiszfeld's Geometric Median**:
   To seed each class dictionary with a highly robust normal state vector $y$ that is immune to impulse outliers, the pipeline computes the multi-dimensional geometric median of the training samples using Weiszfeld's iterative algorithm:
 
-  $$y = \arg\min_{z} \sum_{i=1}^{K(c)} \Vert x(c, i) - z \Vert_2$$
+$$
+\large y = \arg\min_{z} \sum_{i=1}^{K(c)} \Vert x(c, i) - z \Vert_2
+$$
 
-  $$y^{(m+1)} = \frac{\sum_{i=1}^{K(c)} \frac{x(c, i)}{\max\left(\Vert x(c, i) - y^{(m)}\Vert_2, \epsilon\right)}}{\sum_{i=1}^{K(c)} \frac{1}{\max\left(\Vert x(c, i) - y^{(m)}\Vert_2, \epsilon\right)}}$$
+$$
+\large y^{(m+1)} = \dfrac{\sum_{i=1}^{K(c)} \dfrac{x(c, i)}{\max\left(\Vert x(c, i) - y^{(m)}\Vert_2, \epsilon\right)}}{\sum_{i=1}^{K(c)} \dfrac{1}{\max\left(\Vert x(c, i) - y^{(m)}\Vert_2, \epsilon\right)}}
+$$
 
   * *Symbol Definitions*:
     * $y$: The computed 46-dimensional geometric median vector, acting as the stable anchor seed (the very first state) of the class dictionary $D(c)$.
@@ -196,9 +216,13 @@ Models the normal operational manifold of each fault class to generate highly di
 * **Wegerich Similarity Function (WSF)**:
   Computes coordinate similarity using the $L_1$ norm (Manhattan distance) to yield values bounded strictly within the range $(0.0, 1.0]$:
 
-  $$s(u, v) = \frac{1}{1 + \gamma \cdot \Vert u - v \Vert_1}$$
+$$
+\large s(u, v) = \dfrac{1}{1 + \gamma \cdot \Vert u - v \Vert_1}
+$$
 
-  $$\Vert u - v \Vert_1 = \sum_{d=1}^{46} |u(d) - v(d)|$$
+$$
+\large \Vert u - v \Vert_1 = \sum_{d=1}^{46} |u(d) - v(d)|
+$$
 
   * *Symbol Definitions*:
     * $s(u, v)$: Similarity score between 46-dimensional vectors $u$ and $v$.
@@ -212,7 +236,9 @@ Models the normal operational manifold of each fault class to generate highly di
   1. Initialize the dictionary with the robust geometric median: $D(c) = [y]$.
   2. For each candidate training vector $x(c, i) \in X(c)$, append it as a new row in $D(c)$ if and only if its similarity to all existing representative states is strictly below the threshold $\tau$:
 
-     $$s(d(c, m), x(c, i)) < \tau, \quad \forall d(c, m) \in D(c)$$
+$$
+\large s(d(c, m), x(c, i)) < \tau, \quad \forall d(c, m) \in D(c)
+$$
 
   * *Symbol Definitions*:
     * $D(c)$: Representative state dictionary matrix for class $c$, of shape $M(c) \times 46$.
@@ -224,23 +250,33 @@ Models the normal operational manifold of each fault class to generate highly di
 For any given input feature vector $x(n)$ of sample $n$, SBM reconstructs a clean estimate vector $\hat{x}(n, c)$ on the manifold of class $c$:
 1. **Pairwise Memory Similarity Matrix $G(c)$**:
 
-   $$G(c)(i, k) = s(d(c, i), d(c, k))$$
+$$
+\large G(c)(i, k) = s(d(c, i), d(c, k))
+$$
 
 2. **Input-to-Memory Similarity Vector $A(c, n)$**:
 
-   $$A(c, n)(k) = s(x(n), d(c, k))$$
+$$
+\large A(c, n)(k) = s(x(n), d(c, k))
+$$
 
 3. **Raw Interpolation Weights Vector $w(c, n)$**:
 
-   $$w(c, n) = G(c)^{\dagger} \cdot A(c, n)$$
+$$
+\large w(c, n) = G(c)^{\dagger} \cdot A(c, n)
+$$
 
 4. **L1 Normalized Weights Vector $w'(c, n)$**:
 
-   $$w'(c, n) = \frac{w(c, n)}{\Vert w(c, n)\Vert_1} = \frac{w(c, n)}{\sum_{k=1}^{M(c)} |w(c, n)(k)|}$$
+$$
+\large w'(c, n) = \dfrac{w(c, n)}{\Vert w(c, n)\Vert_1} = \dfrac{w(c, n)}{\sum_{k=1}^{M(c)} |w(c, n)(k)|}
+$$
 
 5. **Reconstructed Feature Vector $\hat{x}(n, c)$**:
 
-   $$\hat{x}(n, c) = D(c)^T \cdot w'(c, n) = \sum_{k=1}^{M(c)} w'(c, n)(k) \cdot d(c, k)$$
+$$
+\large \hat{x}(n, c) = D(c)^T \cdot w'(c, n) = \sum_{k=1}^{M(c)} w'(c, n)(k) \cdot d(c, k)
+$$
 
 * *Symbol Definitions*:
   * $G(c)$: Symmetric pairwise similarity matrix between all representative states in $D(c)$, of shape $M(c) \times M(c)$.
@@ -258,15 +294,15 @@ An ensemble approach combining the engineered features with SBM-derived vectors.
   Finds the best-matching fault class $c^*$ that maximizes reconstruction similarity, computes the residual error vector $e(n)$, and appends it to $x(n)$ to yield a 92-dimensional representation:
 
 $$
-c^* = \arg\max_{c \in \{1, \dots, 6\}} s(x(n), \hat{x}(n, c))
+\large c^* = \arg\max_{c \in \{1, \dots, 6\}} s(x(n), \hat{x}(n, c))
 $$
 
 $$
-e(n) = x(n) - \hat{x}(n, c^*)
+\large e(n) = x(n) - \hat{x}(n, c^*)
 $$
 
 $$
-x_{\text{ext}}(n) = \begin{bmatrix} x(n) \\\\ e(n) \end{bmatrix}
+\large x_{\text{ext}}(n) = \begin{bmatrix} x(n) \\\\ e(n) \end{bmatrix}
 $$
 
   * *Symbol Definitions*:
@@ -278,7 +314,7 @@ $$
   Directly appends the 6 SBM class similarity scores to the original 46 features, resulting in a compact 52-dimensional representation:
 
 $$
-x_{\text{ext}}(n) = \begin{bmatrix} x(n) \\\\ s(x(n), \hat{x}(n, c_1)) \\\\ \vdots \\\\ s(x(n), \hat{x}(n, c_6)) \end{bmatrix}
+\large x_{\text{ext}}(n) = \begin{bmatrix} x(n) \\\\ s(x(n), \hat{x}(n, c_1)) \\\\ \vdots \\\\ s(x(n), \hat{x}(n, c_6)) \end{bmatrix}
 $$
 
   * *Symbol Definitions*:
