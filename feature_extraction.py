@@ -47,7 +47,11 @@ SAMPLING_RATE = 50000  # 50 kHz
 EXPECTED_FEATURES = 46
 
 
-def extract_features_for_file(filepath: str, use_hann: bool = False, use_fixed_entropy: bool = False) -> np.ndarray:
+def extract_features_for_file(
+    filepath: str,
+    use_hann: bool = False,
+    use_fixed_entropy: bool = False
+) -> np.ndarray:
     """
     Extracts exactly 46 diagnostic features from a single CSV time-series
     scenario file.
@@ -206,7 +210,12 @@ def extract_features_for_file(filepath: str, use_hann: bool = False, use_fixed_e
     return np.array(feature_vector, dtype=np.float64)
 
 
-def process_set_parallel(filepaths: List[str], set_name: str, use_hann: bool = False, use_fixed_entropy: bool = False) -> np.ndarray:
+def process_set_parallel(
+    filepaths: List[str],
+    set_name: str,
+    use_hann: bool = False,
+    use_fixed_entropy: bool = False
+) -> np.ndarray:
     """
     Spawns concurrent worker processes to extract the 46 hand-crafted features
     in parallel across

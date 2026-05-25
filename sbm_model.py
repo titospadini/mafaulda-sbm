@@ -32,7 +32,11 @@ EXPECTED_ORIGINAL_FEATURES = 46
 EXPECTED_EXTENDED_FEATURES = 92
 
 
-def wegerich_similarity(x1: np.ndarray, x2: np.ndarray, gamma: float = GAMMA) -> np.ndarray:
+def wegerich_similarity(
+    x1: np.ndarray,
+    x2: np.ndarray,
+    gamma: float = GAMMA
+) -> np.ndarray:
     """
     Computes the Wegerich Similarity Function (WSF) between two vectors, or
     between a matrix
@@ -72,7 +76,11 @@ def wegerich_similarity(x1: np.ndarray, x2: np.ndarray, gamma: float = GAMMA) ->
     return 1.0 / (1.0 + gamma * l1_dist)
 
 
-def compute_geometric_median(X: np.ndarray, max_iter: int = 2000, tol: float = 1e-6) -> np.ndarray:
+def compute_geometric_median(
+    X: np.ndarray,
+    max_iter: int = 2000,
+    tol: float = 1e-6
+) -> np.ndarray:
     """
     Finds the geometric median of a multi-dimensional dataset X using the robust
     iterative
@@ -136,7 +144,11 @@ def compute_geometric_median(X: np.ndarray, max_iter: int = 2000, tol: float = 1
     return y
 
 
-def construct_class_dictionary(X_c: np.ndarray, tau: float = TAU, gamma: float = GAMMA) -> np.ndarray:
+def construct_class_dictionary(
+    X_c: np.ndarray,
+    tau: float = TAU,
+    gamma: float = GAMMA
+) -> np.ndarray:
     """
     Constructs the compact SBM representative state dictionary (memory matrix)
     D_c for class c
@@ -198,7 +210,11 @@ def construct_class_dictionary(X_c: np.ndarray, tau: float = TAU, gamma: float =
     return np.array(D_c_list)
 
 
-def compute_sbm_estimates(X: np.ndarray, D_c_dict: Dict[str, np.ndarray], gamma: float = GAMMA) -> Dict[str, np.ndarray]:
+def compute_sbm_estimates(
+    X: np.ndarray,
+    D_c_dict: Dict[str, np.ndarray],
+    gamma: float = GAMMA
+) -> Dict[str, np.ndarray]:
     """
     Computes SBM state estimations for all input samples X across all fault
     classes.
@@ -289,7 +305,11 @@ def compute_sbm_estimates(X: np.ndarray, D_c_dict: Dict[str, np.ndarray], gamma:
     return estimates
 
 
-def generate_extended_features(X: np.ndarray, D_c_dict: Dict[str, np.ndarray], gamma: float = GAMMA) -> np.ndarray:
+def generate_extended_features(
+    X: np.ndarray,
+    D_c_dict: Dict[str, np.ndarray],
+    gamma: float = GAMMA
+) -> np.ndarray:
     """
     Constructs the 92-dimensional extended feature matrix by appending the
     best-matching
@@ -356,7 +376,11 @@ def generate_extended_features(X: np.ndarray, D_c_dict: Dict[str, np.ndarray], g
     return X_extended
 
 
-def generate_similarity_extended_features(X: np.ndarray, D_c_dict: Dict[str, np.ndarray], gamma: float = GAMMA) -> np.ndarray:
+def generate_similarity_extended_features(
+    X: np.ndarray,
+    D_c_dict: Dict[str, np.ndarray],
+    gamma: float = GAMMA
+) -> np.ndarray:
     """
     Constructs the 52-dimensional extended feature matrix by appending the
     6-class SBM

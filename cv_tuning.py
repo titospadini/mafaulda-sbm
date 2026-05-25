@@ -141,7 +141,9 @@ def run_tuning(data_dir: str) -> None:
     print("="*60)
 
 
-def print_results_table(results: List[Tuple[float, float, float]]) -> None:
+def print_results_table(
+    results: List[Tuple[float, float, float]]
+) -> None:
     """
     Outputs a beautifully aligned ASCII text table displaying all evaluated
     hyperparameter combinations

@@ -32,6 +32,7 @@ from sklearn.model_selection import (
 )
 
 from sklearn.ensemble import RandomForestClassifier
+
 from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
@@ -71,7 +72,13 @@ from rf_classifier import (
 from cv_tuning import run_tuning
 
 
-def run_pipeline(dataset_path: str, skip_extraction: bool, data_dir: str, use_hann: bool = False, use_fixed_entropy: bool = False) -> None:
+def run_pipeline(
+    dataset_path: str,
+    skip_extraction: bool,
+    data_dir: str,
+    use_hann: bool = False,
+    use_fixed_entropy: bool = False
+) -> None:
     """
     Executes the standard end-to-end rotating-machine fault diagnosis
     classification pipeline.

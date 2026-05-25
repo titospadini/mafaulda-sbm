@@ -9,6 +9,7 @@ evaluation.
 from typing import List
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+
 from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
@@ -16,7 +17,10 @@ from sklearn.metrics import (
 )
 
 
-def train_classifier(X_train: np.ndarray, y_train: np.ndarray) -> RandomForestClassifier:
+def train_classifier(
+    X_train: np.ndarray,
+    y_train: np.ndarray
+) -> RandomForestClassifier:
     """
     Initializes and trains the Random Forest classifier using standardized
     hyperparameters.
@@ -58,7 +62,12 @@ def train_classifier(X_train: np.ndarray, y_train: np.ndarray) -> RandomForestCl
     return clf
 
 
-def evaluate_classifier(clf: RandomForestClassifier, X_test: np.ndarray, y_test: np.ndarray, y_train_labels: np.ndarray = None) -> np.ndarray:
+def evaluate_classifier(
+    clf: RandomForestClassifier,
+    X_test: np.ndarray,
+    y_test: np.ndarray,
+    y_train_labels: np.ndarray = None
+) -> np.ndarray:
     """
     Evaluates the performance of the trained Random Forest classifier on the
     test split,
@@ -112,7 +121,10 @@ def evaluate_classifier(clf: RandomForestClassifier, X_test: np.ndarray, y_test:
     return y_pred
 
 
-def print_formatted_confusion_matrix(cm: np.ndarray, labels: List[str]) -> None:
+def print_formatted_confusion_matrix(
+    cm: np.ndarray,
+    labels: List[str]
+) -> None:
     """
     Outputs a beautifully aligned, ASCII-based text representation of the
     confusion matrix to the terminal.
