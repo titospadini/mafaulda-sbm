@@ -261,9 +261,9 @@ An ensemble approach combining the engineered features with SBM-derived vectors.
 
   $$e(n) = x(n) - \hat{x}(n, c^*)$$
 
-  <div align="center">
-    <ins>$$x_{\text{ext}}(n) = \begin{bmatrix} x(n) \\ e(n) \end{bmatrix}$$</ins>
-  </div>
+  $$
+  x_{\text{ext}}(n) = \begin{bmatrix} x(n) \cr e(n) \end{bmatrix}
+  $$
 
   * *Symbol Definitions*:
     * $c^*$: Index of the class dictionary that achieves the highest reconstruction similarity to the input vector $x(n)$.
@@ -273,9 +273,9 @@ An ensemble approach combining the engineered features with SBM-derived vectors.
 * **Experiment 3 Configuration 3**:
   Directly appends the 6 SBM class similarity scores to the original 46 features, resulting in a compact 52-dimensional representation:
 
-  <div align="center">
-    <ins>$$x_{\text{ext}}(n) = \begin{bmatrix} x(n) \\ s(x(n), \hat{x}(n, c_1)) \\ \vdots \\ s(x(n), \hat{x}(n, c_6)) \end{bmatrix}$$</ins>
-  </div>
+  $$
+  x_{\text{ext}}(n) = \begin{bmatrix} x(n) \cr s(x(n), \hat{x}(n, c_1)) \cr \vdots \cr s(x(n), \hat{x}(n, c_6)) \end{bmatrix}
+  $$
 
   * *Symbol Definitions*:
     * $s(x(n), \hat{x}(n, c_r))$: Direct WSF similarity score between the input $x(n)$ and its reconstruction under class dictionary $D(c_r)$ for $c_r \in \{c_1, \dots, c_6\}$.
