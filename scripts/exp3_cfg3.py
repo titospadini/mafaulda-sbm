@@ -1,26 +1,18 @@
 """
-Experiment 3 Configuration 3 Replication Script
+Experiment 3 Configuration 3 Replication Script (Pure-Python Version)
 
-This script feeds the Random Forest with SBM similarities instead of estimation
-errors,
-following the third configuration of Experiment 3 from the paper:
-1. Loads the 46-dimensional features (X_train_features, X_test_features) and
-   labels (y_train, y_test).
-2. Builds SBM dictionaries with optimal SBM parameters: threshold tau = 0.85 and
-   gamma = 0.0010.
-3. Generates the 52-dimensional extended feature matrices using WSF similarity
-   scores for each of the 6 classes.
-4. Saves the new extended matrices as X_train_extended_sim.npy and
-   X_test_extended_sim.npy.
-5. Trains and evaluates the Random Forest classifier on the 90% training set and
-   10% test set.
-6. Prints the final Test Accuracy and Confusion Matrix.
+This script feeds the Random Forest with SBM similarities instead of estimation errors:
+1. Loads the 46-dimensional features and labels from pickle files.
+2. Builds SBM dictionaries with optimal SBM parameters.
+3. Generates 52-dimensional extended feature matrices.
+4. Trains and evaluates the Random Forest classifier.
 """
 
 import os
 import sys
 import time
-import numpy as np
+import pickle
+import argparse
 
 # Ensure root is in sys.path so 'mafaulda' package can be imported
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -35,34 +27,12 @@ from mafaulda.rf_classifier import (
     evaluate_classifier,
 )
 
-
-import argparse
 from mafaulda.logging_utils import log, set_verbosity
 
 
 def run_replication() -> None:
     """
-    Executes the replication pipeline for Experiment 3 Configuration 3 from the
-    scientific paper.
-
-    Pedagogical Context:
-        This script implements the class-similarity feature extension
-        methodology:
-          - Loads the 46-dimensional hand-crafted training and testing signal
-             features.
-          - Reconstructs SBM dictionaries for all 6 fault classes using the
-             optimized hyperparameters:
-             similarity threshold $\\tau = 0.85$ and L1-based WSF sensitivity
-             $\\gamma = 0.0010$.
-          - Generates 52-dimensional extended feature matrices by concatenating
-             the 46 original signal
-             features with the 6 SBM class similarity scores.
-          - Trains the Random Forest ensemble on the similarity-extended
-             training set.
-          - Evaluates model fidelity on the test set, outputting overall
-             classification accuracy,
-             a detailed labeled confusion matrix, and full precision/recall
-             metrics.
+    Executes the replication pipeline for Experiment 3 Configuration 3 using only pure Python.
     """
     log("="*60, level=1)
     log("   Experiment 3 Configuration 3: SBM Similarity Features    ", level=1)
@@ -72,55 +42,55 @@ def run_replication() -> None:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(os.path.dirname(script_dir), 'data')
 
-    X_train_path = os.path.join(data_dir, 'X_train_features.npy')
-    X_test_path = os.path.join(data_dir, 'X_test_features.npy')
-    y_train_path = os.path.join(data_dir, 'y_train.npy')
-    y_test_path = os.path.join(data_dir, 'y_test.npy')
+    X_train_path = os.path.join(data_dir, 'X_train_features.pkl')
+    X_test_path = os.path.join(data_dir, 'X_test_features.pkl')
+    y_train_path = os.path.join(data_dir, 'y_train.pkl')
+    y_test_path = os.path.join(data_dir, 'y_test.pkl')
 
     # 1. Load original feature matrices and labels
     log(f"Loading features from {data_dir}...", level=2)
-    X_train = np.load(X_train_path)
-    X_test = np.load(X_test_path)
-    y_train = np.load(y_train_path, allow_pickle=True)
-    y_test = np.load(y_test_path, allow_pickle=True)
+    with open(X_train_path, 'rb') as f:
+        X_train = pickle.load(f)
+    with open(X_test_path, 'rb') as f:
+        X_test = pickle.load(f)
+    with open(y_train_path, 'rb') as f:
+        y_train = pickle.load(f)
+    with open(y_test_path, 'rb') as f:
+        y_test = pickle.load(f)
 
     log(f"  Training set size: {len(X_train)} samples", level=1)
     log(f"  Testing set size:  {len(X_test)} samples", level=1)
 
     # 2. Build SBM dictionaries using Weiszfeld's and Threshold methods
-    # Optimal parameters: tau = 0.85, gamma = 0.0010
     tau = 0.85
     gamma = 0.0010
-    unique_classes = np.unique(y_train)
+    unique_classes = sorted(list(set(y_train)))
 
     log(f"\nBuilding class dictionaries with optimal SBM parameters (tau={tau}, gamma={gamma})...", level=1)
     D_c_dict = {}
     for cls in unique_classes:
         class_start_time = time.time()
-        X_c = X_train[y_train == cls]
+        X_c = [X_train[i] for i, lbl in enumerate(y_train) if lbl == cls]
         # Construct dictionary
         D_c = construct_class_dictionary(X_c, tau=tau, gamma=gamma)
         D_c_dict[cls] = D_c
-        log(f"  - Class '{cls}': built D_c shape {D_c.shape} from {len(X_c)} samples in {time.time() - class_start_time:.2f}s", level=2)
+        log(f"  - Class '{cls}': built D_c shape {len(D_c)}x{len(D_c[0]) if D_c else 0} from {len(X_c)} samples in {time.time() - class_start_time:.2f}s", level=2)
 
     # 3. Generate 52-dimensional similarity extended feature matrices
     log("\nGenerating extended 52-dimensional feature matrices (SBM similarity scores)...", level=1)
     X_train_extended_sim = generate_similarity_extended_features(X_train, D_c_dict, gamma=gamma)
     X_test_extended_sim = generate_similarity_extended_features(X_test, D_c_dict, gamma=gamma)
 
-    log(f"  X_train_extended_sim shape: {X_train_extended_sim.shape} (Expected: ({len(X_train)}, 52))", level=3)
-    log(f"  X_test_extended_sim shape:  {X_test_extended_sim.shape} (Expected: ({len(X_test)}, 52))", level=3)
-
     # 4. Save new extended feature matrices
-    X_train_ext_path = os.path.join(data_dir, 'X_train_extended_sim.npy')
-    X_test_ext_path = os.path.join(data_dir, 'X_test_extended_sim.npy')
-    np.save(X_train_ext_path, X_train_extended_sim)
-    np.save(X_test_ext_path, X_test_extended_sim)
+    X_train_ext_path = os.path.join(data_dir, 'X_train_extended_sim.pkl')
+    X_test_ext_path = os.path.join(data_dir, 'X_test_extended_sim.pkl')
+    with open(X_train_ext_path, 'wb') as f:
+        pickle.dump(X_train_extended_sim, f)
+    with open(X_test_ext_path, 'wb') as f:
+        pickle.dump(X_test_extended_sim, f)
     log(f"\nNew extended matrices saved successfully to data/:", level=2)
-    log(f"  - X_train_extended_sim.npy ({os.path.getsize(X_train_ext_path) / 1024:.1f} KB)", level=2)
-    log(f"  - X_test_extended_sim.npy ({os.path.getsize(X_test_ext_path) / 1024:.1f} KB)", level=2)
 
-    # 5. Train and evaluate the Random Forest Classifier per se
+    # 5. Train and evaluate the Random Forest Classifier
     log("\nTraining Random Forest Classifier on SBM similarity extended features...", level=1)
     train_start = time.time()
     clf = train_classifier(X_train_extended_sim, y_train)
@@ -134,13 +104,12 @@ def run_replication() -> None:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Replication Script for Experiment 3 Configuration 3 SBM Similarity Features.")
     parser.add_argument('-v', '--verbose', action='count', default=0,
-                        help='Increase verbosity level (-v for detailed, -vv for debug).')
+                        help='Increase verbosity level.')
     parser.add_argument('--verbosity', type=int, choices=[0, 1, 2, 3], default=None,
-                        help='Directly set verbosity level (0=silent, 1=default, 2=detailed, 3=debug).')
+                        help='Directly set verbosity level.')
 
     args = parser.parse_args()
 
-    # Determine verbosity level
     if args.verbosity is not None:
         verbosity_level = args.verbosity
     else:

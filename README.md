@@ -1,6 +1,6 @@
 # Multiclass Similarity-Based Modeling (SBM) for Rotating-Machine Fault Diagnosis
 
-This repository contains an optimized Python implementation of the Multiclass Similarity-Based Modeling (SBM) architecture for detecting and classifying faults in rotating machines.
+This repository contains an optimized, **zero-dependency pure Python** implementation of the Multiclass Similarity-Based Modeling (SBM) architecture for detecting and classifying faults in rotating machines.
 
 > [!TIP]
 > **🚀 GPU-Accelerated Version Available**: A high-performance GPU-accelerated implementation of this pipeline (utilizing PyTorch and CUDA for up to 30% faster execution) is available on the [`gpu` branch](https://github.com/titospadini/mafaulda-sbm/tree/gpu). Switch to that branch to check it out!
@@ -32,15 +32,13 @@ The solution is structured into three main pipeline modules:
 
 ### 1. Installation & Dependencies
 
-To execute the rotating-machine diagnosis pipeline, you must install the core mathematical and machine learning libraries. You can install them via `pip`:
-```bash
-pip install numpy scipy scikit-learn
-```
-Alternatively, if you are using Conda, create and activate your environment with:
-```bash
-conda create -n mafaulda_env python=3.10 numpy scipy scikit-learn -y
-conda activate mafaulda_env
-```
+This is a **pure Python** implementation of the SBM architecture. It relies **exclusively** on the Python Standard Library (e.g., `math`, `random`, `pickle`, `multiprocessing`, `argparse`). 
+
+**No third-party packages (such as NumPy, SciPy, or scikit-learn) are required to run the pipeline!** 
+
+To execute the code, you only need:
+* **Python 3.10 or higher** installed on your system.
+
 
 ### 2. MaFaulDa Database Folder Structure
 
@@ -76,7 +74,7 @@ python main.py --use_hann --use_fixed_entropy
 ##### Running Experiment 3 Configuration 3 (52-Dimensional SBM Similarities)
 To execute the replication pipeline utilizing direct SBM class similarity vectors as extended features, run:
 ```bash
-python exp3_cfg3.py
+python scripts/exp3_cfg3.py
 ```
 
 ##### Exposing Command-Line Arguments

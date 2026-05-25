@@ -1,43 +1,30 @@
 """
-Feature Extraction Script for MaFaulDa Dataset
+Feature Extraction Script for MaFaulDa Dataset (Pure-Python Version)
 
-This script handles Step 2 of our Rotating-Machine Fault Diagnosis pipeline:
-1. Re-constructs the identical stratified train/test split from data_prep.py.
-2. Extracts exactly 46 hand-crafted features per scenario (1 rotation frequency,
-   21 spectral features, and 24 statistical features) from the raw sensor
-   signals.
-3. Leverages parallel processing (ProcessPoolExecutor) for fast, concurrent
-   extraction.
-4. Exports the final NumPy matrices (X_train, X_test, y_train, y_test) into the
-   data/ directory.
+This script extracts 46 hand-crafted diagnostic features per operational scenario file:
+- 1 rotation frequency
+- 21 spectral harmonic features
+- 24 statistical features (mean, Shannon entropy, Fisher kurtosis)
+
+Completely implemented in pure Python using our optimized pure_math library.
 """
 
 import os
 import sys
 import time
-
-from typing import (
-    List,
-    Tuple,
-)
-
+from typing import List
 from functools import partial
-import numpy as np
-
-from scipy.stats import (
-    kurtosis,
-    entropy,
-)
-
 from concurrent.futures import ProcessPoolExecutor
 
-from mafaulda.data_prep import (
-    map_dataset,
-    load_and_normalize,
-    TRAIN_TEST_SPLIT_RATIO,
-    RANDOM_STATE,
+from mafaulda.data_prep import load_and_normalize
+from mafaulda.pure_math import (
+    rfft_mags,
+    linear_interp,
+    compute_mean,
+    compute_shannon_entropy,
+    compute_kurtosis,
+    pad_to_power_of_2
 )
-
 from mafaulda.logging_utils import log
 
 # Constants
@@ -49,163 +36,83 @@ def extract_features_for_file(
     filepath: str,
     use_hann: bool = False,
     use_fixed_entropy: bool = False
-) -> np.ndarray:
+) -> List[float]:
     """
-    Extracts exactly 46 diagnostic features from a single CSV time-series
-    scenario file.
-
-    Pedagogical Context:
-        To perform rotating-machine fault diagnosis, raw vibration, acoustic,
-        and rotation
-        time-series must be compressed into representative statistical and
-        spectral metrics.
-        This function implements three layers of feature engineering:
-
-        1. Rotation Frequency (fr) Estimation:
-           - Computes the Discrete Fourier Transform (DFT) of the tachometer
-             pulse train (channel 7).
-           - Identifies the dominant frequency peak within the physically
-             constrained range [5, 120] Hz.
-             This range filters out high-frequency sensor noise and
-             low-frequency DC baseline drift.
-
-        2. Spectral Magnitude Features (21 features):
-           - Extracts exact frequency magnitudes for the first 7 physical
-             sensors at the fundamental
-             frequency (fr), its second harmonic (2fr), and third harmonic
-             (3fr).
-           - Because these harmonic frequencies may not align exactly with
-             discrete FFT bin centers,
-             linear interpolation (np.interp) is used to calculate high-fidelity
-             continuous spectral peaks.
-           - Total features = 7 sensors * 3 harmonics = 21 features.
-
-        3. Statistical Signal Features (24 features):
-           - Computes three core descriptors across all 8 sensor channels (8 * 3
-             = 24 features):
-             a. Mean: Represents physical baseline shifts or offsets.
-             b. Shannon Entropy: Quantifies structural complexity and noise
-             levels, calculated via
-                probability bin counts of a 100-bin histogram.
-             c. Kurtosis: Measures the "peakedness" of the signal distribution,
-             identifying mechanical
-                impact impulses (sudden shocks/clicks caused by gear tooth
-                cracks or bearing spalls).
-
-        4. DSP Enhancements (Optional Flags):
-           - Hanning Window (`use_hann`): Dampens the start and end of the
-             signal to zero to prevent
-             spectral leakage. It applies coherent gain correction (scale factor
-             2.0) to maintain amplitude fidelity.
-           - Fixed Entropy Range (`use_fixed_entropy`): Locks the histogram
-             calculation range to `(-10.0, 10.0)`.
-             This resolves a critical bug where dynamic histogram bin scaling
-             causes a sudden mechanical shock impulse
-             to artificially alter the overall entropy scale.
-
-    Parameters:
-        filepath (str): The absolute path to the CSV file representing the
-        operational state.
-        use_hann (bool): Whether to apply a Hanning window and coherent gain
-        correction to FFT calculations.
-        use_fixed_entropy (bool): Whether to lock the Shannon entropy histogram
-        range to (-10.0, 10.0).
-
-    Returns:
-        np.ndarray: A 46-dimensional float64 feature vector of shape (46,).
+    Extracts exactly 46 diagnostic features from a single CSV scenario file.
+    Optimized for pure Python using decimation for Fast Fourier Transform (FFT) analysis.
     """
     # 1. Load and normalize signal matrix (shape: N, 8)
-    # This divides each sensor channel by its standard deviation for unit
-    # variance.
     normalized_data = load_and_normalize(filepath)
     N = len(normalized_data)
+    if N == 0:
+        return [0.0] * EXPECTED_FEATURES
+
+    # Decimate signal for FFT calculations (factor of 4 reduces N from 250,000 to 62,500)
+    # Effective sampling rate is 12,500 Hz, Nyquist limit 6,250 Hz (extremely precise for 360 Hz 3rd harmonic)
+    DEC_FACTOR = 4
+    SAMPLING_RATE_DEC = SAMPLING_RATE / DEC_FACTOR
 
     # 2. Extract rotation frequency fr from tachometer signal (column 7)
-    tacho = normalized_data[:, 7]
-    if use_hann:
-        window = np.hanning(N)
-        fft_tacho = np.fft.rfft(tacho * window)
-        # Coherent gain correction: divide by window average (0.5), yielding
-        # denominator (N / 4.0)
-        mags_tacho = np.abs(fft_tacho) / (N / 4.0)
-    else:
-        fft_tacho = np.fft.rfft(tacho)
-        mags_tacho = np.abs(fft_tacho) / (N / 2.0)
+    tacho_dec = [normalized_data[r][7] for r in range(0, N, DEC_FACTOR)]
+    mags_tacho = rfft_mags(tacho_dec, use_hann=use_hann)
 
-    freqs = np.fft.rfftfreq(N, d=1/SAMPLING_RATE)
+    # Determine frequency bins
+    n_pad = len(pad_to_power_of_2(tacho_dec))
+    df = SAMPLING_RATE_DEC / n_pad
 
-    # Restrict search for rotation speed peak to physical range [5, 120] Hz to
-    # avoid high-frequency noise
-    mask = (freqs >= 5.0) & (freqs <= 120.0)
-    masked_freqs = freqs[mask]
-    masked_mags = mags_tacho[mask]
+    # Restrict search for rotation speed peak to physical range [5, 120] Hz
+    k_min = int(math_ceil(5.0 / df))
+    k_max = int(math_floor(120.0 / df))
 
-    if len(masked_mags) > 0:
-        peak_sub_idx = np.argmax(masked_mags)
-        f_r = masked_freqs[peak_sub_idx]
-    else:
-        # Fallback to global peak (excluding DC component)
-        peak_idx = np.argmax(mags_tacho[1:]) + 1
-        f_r = freqs[peak_idx]
+    best_mag = -1.0
+    best_k = 1
+
+    k_min = max(1, min(k_min, len(mags_tacho) - 1))
+    k_max = max(1, min(k_max, len(mags_tacho) - 1))
+
+    for k in range(k_min, k_max + 1):
+        if mags_tacho[k] > best_mag:
+            best_mag = mags_tacho[k]
+            best_k = k
+
+    f_r = best_k * df
 
     # Assemble feature vector
-    feature_vector = []
+    feature_vector = [f_r]
 
-    # Feature 0: Rotation frequency fr
-    feature_vector.append(f_r)
-
-    # Features 1-21: Spectral magnitudes of the first 7 sensor signals at fr,
-    # 2fr, 3fr
-    # We normalize DFT magnitudes to make them independent of sample length.
-    # We use linear interpolation (np.interp) to extract magnitudes at exact
-    # continuous frequencies,
-    # preventing discretization/bin-quantization errors.
+    # Features 1-21: Spectral magnitudes of the first 7 sensor signals at fr, 2fr, 3fr
     for col_idx in range(7):
-        col_signal = normalized_data[:, col_idx]
-        if use_hann:
-            window = np.hanning(N)
-            fft_col = np.fft.rfft(col_signal * window)
-            mags_col = np.abs(fft_col) / (N / 4.0)
-        else:
-            fft_col = np.fft.rfft(col_signal)
-            mags_col = np.abs(fft_col) / (N / 2.0)
+        col_signal_dec = [normalized_data[r][col_idx] for r in range(0, N, DEC_FACTOR)]
+        mags_col = rfft_mags(col_signal_dec, use_hann=use_hann)
 
-        mag_1 = np.interp(f_r, freqs, mags_col)
-        mag_2 = np.interp(2.0 * f_r, freqs, mags_col)
-        mag_3 = np.interp(3.0 * f_r, freqs, mags_col)
+        mag_1 = linear_interp(f_r, 0.0, df, mags_col)
+        mag_2 = linear_interp(2.0 * f_r, 0.0, df, mags_col)
+        mag_3 = linear_interp(3.0 * f_r, 0.0, df, mags_col)
 
-        feature_vector.append(mag_1)
-        feature_vector.append(mag_2)
-        feature_vector.append(mag_3)
+        feature_vector.extend([mag_1, mag_2, mag_3])
 
-    # Features 22-45: Statistical features (mean, Shannon entropy, kurtosis) for
-    # all 8 signals
+    # Features 22-45: Statistical features (mean, Shannon entropy, kurtosis) for all 8 signals
     for col_idx in range(8):
-        col_signal = normalized_data[:, col_idx]
+        col_signal = [normalized_data[r][col_idx] for r in range(N)]
 
-        # Mean
-        mean_val = np.mean(col_signal)
+        mean_val = compute_mean(col_signal)
+        entropy_val = compute_shannon_entropy(col_signal, use_fixed=use_fixed_entropy)
+        kurt_val = compute_kurtosis(col_signal)
 
-        # Shannon Entropy (estimated using 100-bin histogram)
-        if use_fixed_entropy:
-            counts, _ = np.histogram(col_signal, bins=100, range=(-10.0, 10.0))
-        else:
-            counts, _ = np.histogram(col_signal, bins=100)
+        feature_vector.extend([mean_val, entropy_val, kurt_val])
 
-        probs = counts / np.sum(counts)
-        # Use scipy.stats.entropy which computes Shannon entropy (base=2 is
-        # standard)
-        entropy_val = entropy(probs, base=2)
+    return feature_vector
 
-        # Kurtosis (Fisher definition: normal distribution = 0.0)
-        kurt_val = kurtosis(col_signal, fisher=True)
 
-        feature_vector.append(mean_val)
-        feature_vector.append(entropy_val)
-        feature_vector.append(kurt_val)
+def math_ceil(x: float) -> int:
+    """Helper integer ceiling."""
+    i = int(x)
+    return i + 1 if x > i else i
 
-    # Return as float64 array
-    return np.array(feature_vector, dtype=np.float64)
+
+def math_floor(x: float) -> int:
+    """Helper integer flooring."""
+    return int(x)
 
 
 def process_set_parallel(
@@ -213,52 +120,22 @@ def process_set_parallel(
     set_name: str,
     use_hann: bool = False,
     use_fixed_entropy: bool = False
-) -> np.ndarray:
+) -> List[List[float]]:
     """
-    Spawns concurrent worker processes to extract the 46 hand-crafted features
-    in parallel across
-    all CSV files in a given dataset split.
-
-    Pedagogical Context:
-        Processing 1,951 files sequentially would require significant
-        computation time due to I/O overhead
-        and CPU-bound Fast Fourier Transforms (FFT). By leveraging a
-        ProcessPoolExecutor, this function
-        distributes the workload across all available CPU cores, achieving
-        optimal multi-core performance.
-        It uses `functools.partial` to cleanly package the runtime DSP flags for
-        parallel execution.
-
-    Parameters:
-        filepaths (List[str]): List of absolute file paths pointing to the raw
-        CSV files.
-        set_name (str): Human-readable name of the dataset split (e.g.,
-        'Training' or 'Testing') for log outputs.
-        use_hann (bool): Whether to apply a Hanning window and coherent gain
-        correction to FFT.
-        use_fixed_entropy (bool): Whether to use a fixed histogram range (-10.0,
-        10.0) for Shannon entropy.
-
-    Returns:
-        np.ndarray: A 2D feature matrix of shape (num_samples, 46) containing
-        the extracted features.
+    Spawns concurrent worker processes to extract features in parallel using only standard library.
     """
     total_files = len(filepaths)
     log(f"\nStarting feature extraction for {set_name} set ({total_files} samples) in parallel...", level=1)
 
     start_time = time.time()
 
-    # Use functools.partial to pass the additional flags to mapped parallel
-    # process execution
+    # Use functools.partial to pass the additional flags
     extract_func = partial(extract_features_for_file, use_hann=use_hann, use_fixed_entropy=use_fixed_entropy)
 
-    # Process files concurrently using all available CPU cores
     with ProcessPoolExecutor() as executor:
         feature_vectors = list(executor.map(extract_func, filepaths))
 
     elapsed_time = time.time() - start_time
     log(f"Completed {set_name} feature extraction in {elapsed_time:.2f} seconds!", level=2)
 
-    # Convert list of vectors to a 2D numpy array
-    feature_matrix = np.vstack(feature_vectors)
-    return feature_matrix
+    return feature_vectors

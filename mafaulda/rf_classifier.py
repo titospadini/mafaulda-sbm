@@ -1,63 +1,29 @@
 """
-Random Forest Classification and Evaluation on Extended SBM Features
+Random Forest Classification and Evaluation (Pure-Python Version)
 
-This module handles the classification step (Step 4) of the rotating-machine
-fault diagnosis pipeline, exposing function interfaces for training and
-evaluation.
+This module handles the training and evaluation steps of the rotating-machine
+fault diagnosis pipeline, using our pure-python RandomForestClassifier.
 """
 
-from typing import List
-import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-
-from sklearn.metrics import (
-    accuracy_score,
-    confusion_matrix,
-    classification_report,
-)
-
+from typing import List, Dict
+from mafaulda.random_forest import RandomForestClassifier
 from mafaulda.logging_utils import log
 
 
 def train_classifier(
-    X_train: np.ndarray,
-    y_train: np.ndarray
+    X_train: List[List[float]],
+    y_train: List[str]
 ) -> RandomForestClassifier:
     """
-    Initializes and trains the Random Forest classifier using standardized
-    hyperparameters.
-
-    Pedagogical Context:
-        The classification task is handled by a Random Forest Ensemble.
-        Standardizing the forest's
-        hyperparameters is crucial for model stability and reproducibility:
-          - `n_estimators=500`: A high number of trees reduces voting variance
-            and guarantees highly stable
-            decision boundaries without increasing overfitting risk.
-          - `max_features='sqrt'`: Selecting a random subset of $\\sqrt{d}$
-            features at each node split
-            decorrelates the individual trees, improving the overall ensemble
-            robustness.
-          - `class_weight='balanced'`: Automatically scales weights inversely
-            proportional to class frequencies.
-            This is critical because the MaFaulDa dataset is extremely
-            unbalanced (e.g. only 49 normal files vs 558
-            underhang files), ensuring that normal operating states are not
-            ignored or misclassified.
-
-    Parameters:
-        X_train (np.ndarray): The extended feature matrix of shape (num_samples,
-        num_features).
-        y_train (np.ndarray): The 1D target label array.
-
-    Returns:
-        RandomForestClassifier: A fully trained Random Forest Classifier model.
+    Initializes and trains our pure-python Random Forest classifier.
     """
+    # Using 100 trees in pure Python for extremely fast execution and high accuracy
     clf = RandomForestClassifier(
-        n_estimators=500,
-        max_features='sqrt',
-        class_weight='balanced',
-        n_jobs=-1,
+        n_estimators=100,
+        max_depth=15,
+        min_samples_split=2,
+        max_features="sqrt",
+        class_weight="balanced",
         random_state=42
     )
     clf.fit(X_train, y_train)
@@ -66,42 +32,18 @@ def train_classifier(
 
 def evaluate_classifier(
     clf: RandomForestClassifier,
-    X_test: np.ndarray,
-    y_test: np.ndarray,
-    y_train_labels: np.ndarray = None
-) -> np.ndarray:
+    X_test: List[List[float]],
+    y_test: List[str],
+    y_train_labels: List[str] = None
+) -> List[str]:
     """
-    Evaluates the performance of the trained Random Forest classifier on the
-    test split,
-    printing the overall accuracy, labeled confusion matrix, and a comprehensive
-    classification report.
-
-    Pedagogical Context:
-        To verify model fidelity and replication accuracy, we calculate:
-          - Overall Classification Accuracy: The fraction of correctly diagnosed
-            operating scenarios.
-          - Labeled Confusion Matrix: A tabular breakdown of true vs predicted
-            classes, critical for
-            inspecting exactly which machine fault states are confused (e.g.
-            horizontal misalignment vs vertical).
-          - Precision, Recall, and F1-Score: Metric bounds computed per class,
-            ensuring that the model's
-            performance is evaluated with equal rigor across both abundant and
-            highly scarce (Normal) classes.
-
-    Parameters:
-        clf (RandomForestClassifier): A fully trained Random Forest model.
-        X_test (np.ndarray): The extended testing feature matrix of shape
-        (num_test, num_features).
-        y_test (np.ndarray): True test label array.
-        y_train_labels (np.ndarray): Training labels (used to enforce
-        consistent, alphabetized class sorting).
-
-    Returns:
-        np.ndarray: Predicted label array of shape (num_test,).
+    Evaluates the performance of the trained Random Forest classifier on the test split,
+    printing overall accuracy, labeled confusion matrix, and classification report.
     """
     y_pred = clf.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
+
+    num_correct = sum(1 for yt, yp in zip(y_test, y_pred) if yt == yp)
+    accuracy = num_correct / len(y_test)
 
     log("\n================ EVALUATION RESULTS ================", level=1)
     log(f"Overall Classification Accuracy: {accuracy * 100.0:.2f}%", level=1)
@@ -109,49 +51,44 @@ def evaluate_classifier(
     log("====================================================", level=1)
 
     # Labeled Confusion Matrix
-    if y_train_labels is None:
-        unique_labels = sorted(list(clf.classes_))
-    else:
-        unique_labels = sorted(list(np.unique(y_train_labels)))
-    cm = confusion_matrix(y_test, y_pred, labels=unique_labels)
+    unique_labels = sorted(list(set(y_test + (y_train_labels or []))))
+    cm = compute_confusion_matrix(y_test, y_pred, unique_labels)
     print_formatted_confusion_matrix(cm, unique_labels)
 
     # Classification Report
-    log("\n--- CLASSIFICATION REPORT ---", level=1)
-    log(classification_report(y_test, y_pred, labels=unique_labels), level=1)
+    print_classification_report(y_test, y_pred, unique_labels)
 
     return y_pred
 
 
+def compute_confusion_matrix(
+    y_true: List[str],
+    y_pred: List[str],
+    labels: List[str]
+) -> List[List[int]]:
+    """Computes a 2D confusion matrix."""
+    n = len(labels)
+    label_to_idx = {label: i for i, label in enumerate(labels)}
+    cm = [[0] * n for _ in range(n)]
+
+    for yt, yp in zip(y_true, y_pred):
+        if yt in label_to_idx and yp in label_to_idx:
+            r = label_to_idx[yt]
+            c = label_to_idx[yp]
+            cm[r][c] += 1
+
+    return cm
+
+
 def print_formatted_confusion_matrix(
-    cm: np.ndarray,
+    cm: List[List[int]],
     labels: List[str]
 ) -> None:
-    """
-    Outputs a beautifully aligned, ASCII-based text representation of the
-    confusion matrix to the terminal.
-
-    Pedagogical Context:
-        Standard SciKit-Learn confusion matrix arrays are raw 2D integers, which
-        are hard to interpret
-        without labels. This helper function dynamically measures string widths
-        and outputs a clean grid
-        with vertical separators and aligned columns, matching the visual
-        excellence expected in a premium
-        CLI application.
-
-    Parameters:
-        cm (np.ndarray): Raw 2D confusion matrix of shape (num_classes,
-        num_classes).
-        labels (List[str]): Alphabetically ordered list of the 6 fault class
-        names.
-    """
+    """Outputs a beautifully aligned ASCII representation of the confusion matrix."""
     num_classes = len(labels)
-    # Determine column width based on longest label length
     max_label_len = max(len(lbl) for lbl in labels)
     col_width = max(max_label_len, 8)
 
-    # 1. Print Header Row (Predicted Classes)
     log("\n--- CONFUSION MATRIX (True \\ Predicted) ---", level=1)
     header = f"{'True Class':<{max_label_len}} |"
     for lbl in labels:
@@ -159,11 +96,59 @@ def print_formatted_confusion_matrix(
     log(header, level=1)
     log("-" * len(header), level=1)
 
-    # 2. Print Rows
     for i in range(num_classes):
         row_str = f"{labels[i]:<{max_label_len}} |"
         for j in range(num_classes):
-            cell_val = cm[i, j]
+            cell_val = cm[i][j]
             row_str += f" {cell_val:^{col_width}} |"
         log(row_str, level=1)
     log("-" * len(header), level=1)
+
+
+def print_classification_report(
+    y_true: List[str],
+    y_pred: List[str],
+    labels: List[str]
+) -> None:
+    """Computes and prints a precision, recall, and F1-score report for each class."""
+    log("\n--- CLASSIFICATION REPORT ---", level=1)
+    max_label_len = max(len(lbl) for lbl in labels)
+
+    header = f"{'Class':<{max_label_len}} | {'Precision':^10} | {'Recall':^10} | {'F1-Score':^10} | {'Support':^10}"
+    log(header, level=1)
+    log("-" * len(header), level=1)
+
+    total_tp = 0
+    total_samples = len(y_true)
+
+    for label in labels:
+        tp = sum(1 for yt, yp in zip(y_true, y_pred) if yt == label and yp == label)
+        fp = sum(1 for yt, yp in zip(y_true, y_pred) if yt != label and yp == label)
+        fn = sum(1 for yt, yp in zip(y_true, y_pred) if yt == label and yp != label)
+        support = sum(1 for yt in y_true if yt == label)
+
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1 = 2.0 * precision * recall / (precision + recall) if (precision + recall) > 0.0 else 0.0
+
+        total_tp += tp
+        log(f"{label:<{max_label_len}} | {precision:^10.4f} | {recall:^10.4f} | {f1:^10.4f} | {support:^10}", level=1)
+
+    log("-" * len(header), level=1)
+    macro_precision = sum(
+        sum(1 for yt, yp in zip(y_true, y_pred) if yt == lbl and yp == lbl) /
+        max(1, sum(1 for yp in y_pred if yp == lbl))
+        for lbl in labels
+    ) / len(labels)
+
+    macro_recall = sum(
+        sum(1 for yt, yp in zip(y_true, y_pred) if yt == lbl and yp == lbl) /
+        max(1, sum(1 for yt in y_true if yt == lbl))
+        for lbl in labels
+    ) / len(labels)
+
+    macro_f1 = 2 * macro_precision * macro_recall / (macro_precision + macro_recall) if (macro_precision + macro_recall) > 0 else 0.0
+    accuracy = total_tp / total_samples
+
+    log(f"{'Accuracy':<{max_label_len}} | {'':^10} | {'':^10} | {accuracy:^10.4f} | {total_samples:^10}", level=1)
+    log(f"{'Macro Average':<{max_label_len}} | {macro_precision:^10.4f} | {macro_recall:^10.4f} | {macro_f1:^10.4f} | {total_samples:^10}", level=1)
