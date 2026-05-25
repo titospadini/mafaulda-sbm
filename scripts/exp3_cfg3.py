@@ -40,7 +40,7 @@ import argparse
 from mafaulda.logging_utils import log, set_verbosity
 
 
-def run_replication() -> None:
+def run_replication(use_gpu: bool = False) -> None:
     """
     Executes the replication pipeline for Experiment 3 Configuration 3 from the
     scientific paper.
@@ -87,6 +87,14 @@ def run_replication() -> None:
     log(f"  Training set size: {len(X_train)} samples", level=1)
     log(f"  Testing set size:  {len(X_test)} samples", level=1)
 
+    # Check GPU availability and fallback
+    from mafaulda.gpu_utils import is_gpu_available
+    active_gpu = use_gpu and is_gpu_available()
+    if active_gpu:
+        log("Using GPU Acceleration for SBM similarity computations.", level=1)
+    elif use_gpu:
+        log("GPU requested, but PyTorch or CUDA is not available. Falling back to CPU.", level=1)
+
     # 2. Build SBM dictionaries using Weiszfeld's and Threshold methods
     # Optimal parameters: tau = 0.85, gamma = 0.0010
     tau = 0.85
@@ -105,8 +113,8 @@ def run_replication() -> None:
 
     # 3. Generate 52-dimensional similarity extended feature matrices
     log("\nGenerating extended 52-dimensional feature matrices (SBM similarity scores)...", level=1)
-    X_train_extended_sim = generate_similarity_extended_features(X_train, D_c_dict, gamma=gamma)
-    X_test_extended_sim = generate_similarity_extended_features(X_test, D_c_dict, gamma=gamma)
+    X_train_extended_sim = generate_similarity_extended_features(X_train, D_c_dict, gamma=gamma, use_gpu=active_gpu)
+    X_test_extended_sim = generate_similarity_extended_features(X_test, D_c_dict, gamma=gamma, use_gpu=active_gpu)
 
     log(f"  X_train_extended_sim shape: {X_train_extended_sim.shape} (Expected: ({len(X_train)}, 52))", level=3)
     log(f"  X_test_extended_sim shape:  {X_test_extended_sim.shape} (Expected: ({len(X_test)}, 52))", level=3)
@@ -137,6 +145,8 @@ if __name__ == '__main__':
                         help='Increase verbosity level (-v for detailed, -vv for debug).')
     parser.add_argument('--verbosity', type=int, choices=[0, 1, 2, 3], default=None,
                         help='Directly set verbosity level (0=silent, 1=default, 2=detailed, 3=debug).')
+    parser.add_argument('--gpu', action='store_true',
+                        help='Enable optional GPU acceleration using PyTorch and CUDA.')
 
     args = parser.parse_args()
 
@@ -148,7 +158,7 @@ if __name__ == '__main__':
     set_verbosity(verbosity_level)
 
     try:
-        run_replication()
+        run_replication(use_gpu=args.gpu)
     except Exception as e:
         log(f"\n[ERROR] Replication script failed with exception: {e}", level=0, file=sys.stderr)
         import traceback

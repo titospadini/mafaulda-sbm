@@ -80,7 +80,8 @@ def run_pipeline(
     skip_extraction: bool,
     data_dir: str,
     use_hann: bool = False,
-    use_fixed_entropy: bool = False
+    use_fixed_entropy: bool = False,
+    use_gpu: bool = False
 ) -> None:
     """
     Executes the standard end-to-end rotating-machine fault diagnosis
@@ -116,6 +117,7 @@ def run_pipeline(
         correction to DFT signals.
         use_fixed_entropy (bool): Whether to lock the Shannon entropy histogram
         range to (-10.0, 10.0).
+        use_gpu (bool): Whether to enable optional GPU acceleration via PyTorch.
     """
     pipeline_start = time.time()
 
@@ -176,8 +178,8 @@ def run_pipeline(
         y_test = np.load(y_test_path, allow_pickle=True)
     else:
         # Extract features in parallel for training and testing sets
-        X_train = process_set_parallel(train_paths, "Training", use_hann=use_hann, use_fixed_entropy=use_fixed_entropy)
-        X_test = process_set_parallel(test_paths, "Testing", use_hann=use_hann, use_fixed_entropy=use_fixed_entropy)
+        X_train = process_set_parallel(train_paths, "Training", use_hann=use_hann, use_fixed_entropy=use_fixed_entropy, use_gpu=use_gpu)
+        X_test = process_set_parallel(test_paths, "Testing", use_hann=use_hann, use_fixed_entropy=use_fixed_entropy, use_gpu=use_gpu)
         y_train = np.array(train_labels)
         y_test = np.array(test_labels)
 
@@ -199,6 +201,14 @@ def run_pipeline(
     log("=== STEP 3: SBM Dictionary Construction & Feature Extension ===", level=1)
     log("="*60, level=1)
 
+    # Check GPU availability and fallback
+    from mafaulda.gpu_utils import is_gpu_available
+    active_gpu = use_gpu and is_gpu_available()
+    if active_gpu:
+        log("Using GPU Acceleration for SBM projections and similarity computations.", level=1)
+    elif use_gpu:
+        log("GPU requested, but PyTorch or CUDA is not available. Falling back to CPU.", level=1)
+
     unique_classes = np.unique(y_train)
     log(f"Constructing class dictionary matrices (D_c) using Weiszfeld's and Threshold methods for {len(unique_classes)} classes...", level=1)
 
@@ -213,8 +223,8 @@ def run_pipeline(
         log(f"  - Class '{cls}': built D_c shape {D_c.shape} from {len(X_c)} samples in {class_elapsed:.2f}s", level=2)
 
     log("\nGenerating extended 92-dimensional feature matrices (SBM Model B)...", level=1)
-    X_train_extended = generate_extended_features(X_train, D_c_dict, gamma=GAMMA)
-    X_test_extended = generate_extended_features(X_test, D_c_dict, gamma=GAMMA)
+    X_train_extended = generate_extended_features(X_train, D_c_dict, gamma=GAMMA, use_gpu=active_gpu)
+    X_test_extended = generate_extended_features(X_test, D_c_dict, gamma=GAMMA, use_gpu=active_gpu)
 
     # Save the new extended feature matrices
     X_train_ext_path = os.path.join(data_dir, 'X_train_extended.npy')
@@ -262,6 +272,8 @@ if __name__ == '__main__':
                         help='Increase verbosity level (-v for detailed, -vv for debug).')
     parser.add_argument('--verbosity', type=int, choices=[0, 1, 2, 3], default=None,
                         help='Directly set verbosity level (0=silent, 1=default, 2=detailed, 3=debug).')
+    parser.add_argument('--gpu', action='store_true',
+                        help='Enable optional GPU acceleration using PyTorch and CUDA.')
 
     args = parser.parse_args()
 
@@ -293,7 +305,8 @@ if __name__ == '__main__':
                 args.skip_extraction,
                 data_dir,
                 use_hann=args.use_hann,
-                use_fixed_entropy=args.use_fixed_entropy
+                use_fixed_entropy=args.use_fixed_entropy,
+                use_gpu=args.gpu
             )
     except Exception as e:
         log(f"\n[ERROR] Pipeline failed with exception: {e}", level=0, file=sys.stderr)
