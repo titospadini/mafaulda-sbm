@@ -298,7 +298,7 @@ if __name__ == '__main__':
 
     try:
         if args.tune:
-            run_tuning(data_dir)
+            run_tuning(data_dir, use_gpu=args.gpu)
         else:
             run_pipeline(
                 dataset_path,

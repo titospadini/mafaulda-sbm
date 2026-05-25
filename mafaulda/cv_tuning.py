@@ -29,7 +29,12 @@ from mafaulda.rf_classifier import train_classifier
 from mafaulda.logging_utils import log
 
 
-def run_tuning(data_dir: str) -> None:
+def run_tuning(
+    data_dir: str,
+    use_gpu: bool = False,
+    gammas: List[float] = None,
+    taus: List[float] = None,
+) -> None:
     """
     Executes a 10-fold Stratified Cross-Validation grid search to optimize the
     SBM hyperparameters
@@ -57,14 +62,17 @@ def run_tuning(data_dir: str) -> None:
     Parameters:
         data_dir (str): Absolute path to the directory containing pre-extracted
         feature files.
+        use_gpu (bool): Whether to enable GPU acceleration for SBM projections.
+        gammas (List[float], optional): Custom list of WSF sensitivity gamma parameters.
+        taus (List[float], optional): Custom list of SBM dictionary thresholds.
 
     Raises:
         FileNotFoundError: If the pre-extracted `X_train_features.npy` files do
         not exist under `data_dir`.
     """
-    log("\n" + "="*60, level=1)
+    log("\n" + "="*65, level=1)
     log("=== STEP 5: SBM Hyperparameter Tuning (10-Fold Stratified CV) ===", level=1)
-    log("="*60, level=1)
+    log("="*65, level=1)
 
     X_train_path = os.path.join(data_dir, 'X_train_features.npy')
     y_train_path = os.path.join(data_dir, 'y_train.npy')
@@ -83,8 +91,12 @@ def run_tuning(data_dir: str) -> None:
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
 
     # Grid search parameters
-    gammas = [0.0005, 0.001, 0.01, 0.1]
-    taus = [0.75, 0.80, 0.85, 0.90]
+    if gammas is None:
+        gammas = [0.0005, 0.001, 0.01, 0.1]
+    if taus is None:
+        taus = [0.75, 0.80, 0.85, 0.90]
+
+    log(f"\nEvaluating hyperparameter grid search over gammas (γ): {gammas} | taus (τ): {taus}", level=1)
 
     results = []
     grid_start_time = time.time()
@@ -108,8 +120,8 @@ def run_tuning(data_dir: str) -> None:
                     D_c_dict[cls] = D_c
 
                 # SBM estimation and error vector generation
-                X_tr_ext = generate_extended_features(X_tr, D_c_dict, gamma=gamma)
-                X_val_ext = generate_extended_features(X_val, D_c_dict, gamma=gamma)
+                X_tr_ext = generate_extended_features(X_tr, D_c_dict, gamma=gamma, use_gpu=use_gpu)
+                X_val_ext = generate_extended_features(X_val, D_c_dict, gamma=gamma, use_gpu=use_gpu)
 
                 # Train Random Forest Classifier concurrently via our
                 # rf_classifier module

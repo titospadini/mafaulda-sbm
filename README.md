@@ -4,6 +4,10 @@
 > **🚀 GPU-Accelerated Branch Active**: This is the dedicated `gpu` branch containing our high-performance **Streaming CPU-GPU Batch Pipeline**. By offloading DSP computations (FFTs, bincounts, Kurtosis) and SBM similarity projections to your NVIDIA GPU (PyTorch/CUDA), it achieves a **25% overall speedup** (running in 36 seconds end-to-end!).
 > To check out the standard CPU-only implementation, switch to the `main` branch.
 
+> [!WARNING]
+> **⚠️ GPU Optimization Disclaimer**: While this implementation genuinely utilizes the GPU (CUDA) and shows clear performance improvements over the CPU version (yielding a **25% to 30% speedup** as detailed in our [Benchmark PC Specs](#-peak-performance-comparison)), the GPU usage is **not perfectly optimized**.
+> By monitoring CPU and GPU utilization, it is clear that the GPU is under-saturated and there are significant bottleneck bottlenecks (such as CPU-to-GPU memory transfer and serial preprocessing steps). This is a work in progress that requires further improvements to extract the maximum capability of the hardware. We openly welcome contributions to optimize the pipeline further!
+
 This repository contains an optimized Python implementation of the Multiclass Similarity-Based Modeling (SBM) architecture for detecting and classifying faults in rotating machines.
 
 The theoretical foundation and pipeline strictly reproduce the methodology presented in the scientific paper:
@@ -102,9 +106,19 @@ The pipeline exposes the following flexible arguments to control feature extract
 | **Training Feature Extraction** | 42.77 seconds | **30.16 seconds** | **30% Faster** |
 | **End-to-End Pipeline Time** | 48.60 seconds | **36.14 seconds** | **25% Faster** |
 
+*\*Benchmarks were measured on a high-performance desktop with the following hardware specs:*
+* **CPU**: AMD Ryzen 7 9800X3D (8 Cores, 16 Threads, 96MB 3D V-Cache)
+* **GPU**: NVIDIA GeForce RTX 5070 Ti (16 GB VRAM)
+* **RAM**: 64 GB DDR5 RAM (32 GB allocated to WSL2)
+* **Storage**: SSD NVMe PCIe 5.0 (2 TB Capacity)
+* **OS**: Ubuntu 26.04 LTS running via WSL2 (Host: Windows 11 Pro)
+
 #### Option B: Interactive Jupyter Notebook
 
 For an interactive, step-by-step visual walk-through of the replication pipeline, you can use the provided Jupyter Notebook. This is an entirely optional alternative to using the CLI scripts:
+
+> [!TIP]
+> **Native GPU Support in Jupyter**: The interactive Jupyter Notebook (`reproduce_experiments.ipynb`) has been fully adapted to support optional GPU acceleration natively. It automatically detects if CUDA is available and uses our high-performance batched signal pipeline and GPU SBM projections, matching the CLI speed seamlessly.
 
 1. Ensure Jupyter is installed in your environment:
    ```bash
@@ -117,6 +131,7 @@ For an interactive, step-by-step visual walk-through of the replication pipeline
    jupyter notebook notebooks/reproduce_experiments.ipynb
    ```
 3. Execute the cells sequentially to inspect feature extraction, Weiszfeld centroid construction, memory dictionary growth, SBM residual generation, and Random Forest classification reports interactively.
+
 
 ---
 
