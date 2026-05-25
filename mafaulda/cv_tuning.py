@@ -20,12 +20,12 @@ import numpy as np
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score
 
-from sbm_model import (
+from mafaulda.sbm_model import (
     construct_class_dictionary,
     generate_extended_features,
 )
 
-from rf_classifier import train_classifier
+from mafaulda.rf_classifier import train_classifier
 
 
 def run_tuning(data_dir: str) -> None:

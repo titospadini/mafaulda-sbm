@@ -164,7 +164,7 @@ def construct_class_dictionary(
         1. Initialize $D_c$ with the robust geometric median of $X_c$.
         2. Recursively iterate through each candidate training sample $x \\in
            X_c$.
-        3. Compute the WSF similarity between $x$ and all existing states inside
+         3. Compute the WSF similarity between $x$ and all existing states inside
            $D_c$.
         4. Append $x$ as a new state in $D_c$ ONLY if its similarity to all
            existing states is strictly

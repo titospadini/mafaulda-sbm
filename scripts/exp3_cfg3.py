@@ -22,15 +22,15 @@ import sys
 import time
 import numpy as np
 
-# Ensure local imports work correctly
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Ensure root is in sys.path so 'mafaulda' package can be imported
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sbm_model import (
+from mafaulda.sbm_model import (
     construct_class_dictionary,
     generate_similarity_extended_features,
 )
 
-from rf_classifier import (
+from mafaulda.rf_classifier import (
     train_classifier,
     evaluate_classifier,
 )
@@ -44,18 +44,18 @@ def run_replication() -> None:
     Pedagogical Context:
         This script implements the class-similarity feature extension
         methodology:
-          1. Loads the 46-dimensional hand-crafted training and testing signal
+          - Loads the 46-dimensional hand-crafted training and testing signal
              features.
-          2. Reconstructs SBM dictionaries for all 6 fault classes using the
+          - Reconstructs SBM dictionaries for all 6 fault classes using the
              optimized hyperparameters:
              similarity threshold $\\tau = 0.85$ and L1-based WSF sensitivity
              $\\gamma = 0.0010$.
-          3. Generates 52-dimensional extended feature matrices by concatenating
+          - Generates 52-dimensional extended feature matrices by concatenating
              the 46 original signal
              features with the 6 SBM class similarity scores.
-          4. Trains the Random Forest ensemble on the similarity-extended
+          - Trains the Random Forest ensemble on the similarity-extended
              training set.
-          5. Evaluates model fidelity on the test set, outputting overall
+          - Evaluates model fidelity on the test set, outputting overall
              classification accuracy,
              a detailed labeled confusion matrix, and full precision/recall
              metrics.
@@ -66,7 +66,7 @@ def run_replication() -> None:
 
     # Define paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(script_dir, 'data')
+    data_dir = os.path.join(os.path.dirname(script_dir), 'data')
 
     X_train_path = os.path.join(data_dir, 'X_train_features.npy')
     X_test_path = os.path.join(data_dir, 'X_test_features.npy')

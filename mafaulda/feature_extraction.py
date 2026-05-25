@@ -31,11 +31,7 @@ from scipy.stats import (
 
 from concurrent.futures import ProcessPoolExecutor
 
-# Import mapping, normalization, and configuration from data_prep
-# Adding current directory to sys.path to ensure correct importing
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from data_prep import (
+from mafaulda.data_prep import (
     map_dataset,
     load_and_normalize,
     TRAIN_TEST_SPLIT_RATIO,

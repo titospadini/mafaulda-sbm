@@ -42,7 +42,7 @@ from sklearn.metrics import (
 # Ensure local imports work correctly
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from data_prep import (
+from mafaulda.data_prep import (
     map_dataset,
     load_and_normalize,
     TRAIN_TEST_SPLIT_RATIO,
@@ -50,12 +50,12 @@ from data_prep import (
     EXPECTED_TOTAL_FILES,
 )
 
-from feature_extraction import (
+from mafaulda.feature_extraction import (
     process_set_parallel,
     EXPECTED_FEATURES,
 )
 
-from sbm_model import (
+from mafaulda.sbm_model import (
     construct_class_dictionary,
     generate_extended_features,
     GAMMA,
@@ -64,12 +64,12 @@ from sbm_model import (
     EXPECTED_EXTENDED_FEATURES,
 )
 
-from rf_classifier import (
+from mafaulda.rf_classifier import (
     train_classifier,
     evaluate_classifier,
 )
 
-from cv_tuning import run_tuning
+from mafaulda.cv_tuning import run_tuning
 
 
 def run_pipeline(
