@@ -1,5 +1,9 @@
 # Multiclass Similarity-Based Modeling (SBM) for Rotating-Machine Fault Diagnosis
 
+> [!TIP]
+> **🚀 GPU-Accelerated Branch Active**: This is the dedicated `gpu` branch containing our high-performance **Streaming CPU-GPU Batch Pipeline**. By offloading DSP computations (FFTs, bincounts, Kurtosis) and SBM similarity projections to your NVIDIA GPU (PyTorch/CUDA), it achieves a **25% overall speedup** (running in 36 seconds end-to-end!).
+> To check out the standard CPU-only implementation, switch to the `main` branch.
+
 This repository contains an optimized Python implementation of the Multiclass Similarity-Based Modeling (SBM) architecture for detecting and classifying faults in rotating machines.
 
 The theoretical foundation and pipeline strictly reproduce the methodology presented in the scientific paper:
@@ -29,15 +33,18 @@ The solution is structured into three main pipeline modules:
 
 ### 1. Installation & Dependencies
 
-To execute the rotating-machine diagnosis pipeline, you must install the core mathematical and machine learning libraries. You can install them via `pip`:
+To execute the GPU-accelerated pipeline, we recommend creating a dedicated Conda environment using our provided `environment_gpu.yml`. This automatically configures PyTorch with CUDA 12.4+ to support high-performance NVIDIA Blackwell, Ada Lovelace, and Ampere architecture GPUs:
+
 ```bash
-pip install numpy scipy scikit-learn
+# Clone the repository and checkout the gpu branch
+git checkout gpu
+
+# Create and activate the GPU conda environment
+conda env create -f environment_gpu.yml
+conda activate mafaulda_gpu
 ```
-Alternatively, if you are using Conda, create and activate your environment with:
-```bash
-conda create -n mafaulda_env python=3.10 numpy scipy scikit-learn -y
-conda activate mafaulda_env
-```
+
+*(Alternatively, to run on CPU only, you can simply install `numpy scipy scikit-learn` in a python environment and omit the `--gpu` flag).*
 
 ### 2. MaFaulDa Database Folder Structure
 
@@ -65,15 +72,15 @@ You can reproduce the paper's experiments either by running the modular CLI Pyth
 #### Option A: Direct CLI Scripts
 
 ##### Running SBM Model B (Default 92-Dimensional Error Residuals)
-To execute the unified end-to-end Model B classification pipeline using our advanced digital signal processing (DSP) enhancements, run:
+To execute the unified end-to-end Model B classification pipeline using our **GPU acceleration** and advanced digital signal processing (DSP) enhancements, run:
 ```bash
-python main.py --use_hann --use_fixed_entropy
+python main.py --gpu --use_hann --use_fixed_entropy
 ```
 
 ##### Running Experiment 3 Configuration 3 (52-Dimensional SBM Similarities)
-To execute the replication pipeline utilizing direct SBM class similarity vectors as extended features, run:
+To execute the similarity-extended replication pipeline utilizing direct SBM class similarity scores on the GPU, run:
 ```bash
-python exp3_cfg3.py
+python scripts/exp3_cfg3.py --gpu
 ```
 
 ##### Exposing Command-Line Arguments
@@ -81,10 +88,19 @@ python exp3_cfg3.py
 The pipeline exposes the following flexible arguments to control feature extraction, cross-validation, and caching:
 
 * `--dataset_path <path>`: Specifies the directory path to the raw MaFaulDa database folder (defaults to `~/datasets/mafaulda`).
-* `--use_hann`: Applies a Hanning window function (with exact coherent gain correction) to the Discrete Fourier Transform (DFT) signals. This mitigates spectral leakage and side-lobe noise, allowing peak frequency magnitude extraction to be highly precise.
-* `--use_fixed_entropy`: Strictly locks the Shannon entropy histogram range to `(-10.0, 10.0)` across all files. This fixes a critical signal processing bug where dynamic-bin scaling (default behavior) distorts entropy features when signals experience sudden peak/shock impulses.
-* `--tune`: Executes a full Stratified 10-fold Cross-Validation grid search to inspect SBM hyperparameter performance over gamma ($\gamma$) and threshold tau ($\tau$).
-* `--skip_extraction`: Speeds up SBM iteration and model training loops by reusing pre-extracted features under the `./data` directory instead of parsing the 1,951 raw CSV files.
+* `--gpu`: Enables full GPU-accelerated feature extraction and SBM projections using PyTorch and CUDA. It streams signals asynchronously in optimal batches of 32, fully saturating GPU cores and relieving the CPU.
+* `--use_hann`: Applies a Hanning window function (with exact coherent gain correction) to the Discrete Fourier Transform (DFT) signals to mitigate spectral leakage.
+* `--use_fixed_entropy`: Strictly locks the Shannon entropy histogram range to `(-10.0, 10.0)` across all files. This fixes a critical signal processing bug where dynamic-bin scaling distorts entropy features.
+* `--tune`: Executes a full Stratified 10-fold Cross-Validation grid search to inspect SBM hyperparameter performance over gamma ($\gamma$) and threshold tau ($\tau$) directly on the GPU.
+* `--skip_extraction`: Speeds up SBM iteration by reusing pre-extracted features under the `./data` directory.
+
+##### 📊 Peak Performance Comparison
+
+| Metric | CPU-Only Baseline | **Streaming Batched GPU (Batch 32)** | **The Speedup** |
+| :--- | :--- | :--- | :--- |
+| **Accuracy** | **98.47%** | **98.47%** | **100% Parity** |
+| **Training Feature Extraction** | 42.77 seconds | **30.16 seconds** | **30% Faster** |
+| **End-to-End Pipeline Time** | 48.60 seconds | **36.14 seconds** | **25% Faster** |
 
 #### Option B: Interactive Jupyter Notebook
 
