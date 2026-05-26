@@ -46,7 +46,7 @@ To support different operational scenarios and hardware constraints, this projec
 ### 🔑 Critical Architectural Insights
 
 * **The `pure-python` Tradeoff**:
-  * **The Pros**: Zero third-party dependencies! It runs entirely out-of-the-box on any standard Python 3.10+ installation.
+  * **The Pros**: Zero third-party dependencies! It runs entirely out-of-the-box on standard CPython 3.10+ (fully tested and verified up to 3.14.5). Python 3.11+ is highly recommended for substantial performance gains.
   * **The Cons**: High-frequency signal processing is computationally intensive. Implementing a Cooley-Tukey Radix-2 FFT and statistical operators (Mean, Shannon Entropy, Kurtosis) in pure Python on raw time-series ($1,951\text{ files} \times 8\text{ channels} \times 250,000\text{ samples} \approx 3.9\text{ billion datapoints}$) leads to heavy CPU-bound processing, making full feature extraction slow.
   * *Tip*: Utilize `--skip_extraction` to bypass raw DSP parsing and load the pre-computed 46-dimensional feature vectors in under **22.5 seconds**!
 * **The `main` (CPU) baseline**:
@@ -65,7 +65,7 @@ This is a **pure Python** implementation of the SBM architecture. It relies **ex
 **No third-party packages (such as NumPy, SciPy, or scikit-learn) are required to run the pipeline!**
 
 To execute the code, you only need:
-* **Python 3.10 or higher** installed on your system.
+* **CPython 3.10 or higher** installed on your system (Python 3.11+ is highly recommended for massive out-of-the-box speedups due to adaptive bytecode optimizations, fully verified up to **Python 3.14.5**).
 
 
 ### 2. MaFaulDa Database Folder Structure
