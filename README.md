@@ -46,7 +46,7 @@ To support different operational scenarios and hardware constraints, this projec
 ### 🔑 Critical Architectural Insights
 
 * **The `pure-python` Tradeoff**:
-  * **The Pros**: Zero third-party dependencies! It runs entirely out-of-the-box on any standard Python 3.10+ installation.
+  * **The Pros**: Zero third-party dependencies! It runs entirely out-of-the-box on standard CPython 3.10+ (fully tested and verified up to 3.14.5). Python 3.11+ is highly recommended for substantial performance gains.
   * **The Cons**: High-frequency signal processing is computationally intensive. Implementing a Cooley-Tukey Radix-2 FFT and statistical operators (Mean, Shannon Entropy, Kurtosis) in pure Python on raw time-series ($1,951\text{ files} \times 8\text{ channels} \times 250,000\text{ samples} \approx 3.9\text{ billion datapoints}$) leads to heavy CPU-bound processing, making full feature extraction slow.
   * *Tip*: Utilize `--skip_extraction` to bypass raw DSP parsing and load the pre-computed 46-dimensional feature vectors in under **22.5 seconds**!
 * **The `main` (CPU) baseline**:
