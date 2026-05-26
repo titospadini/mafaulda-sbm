@@ -33,6 +33,34 @@ The solution is structured into three main pipeline modules:
 
 ------
 
+## 📊 Multi-Branch Performance & Benchmark Comparison
+
+To support different operational scenarios and hardware constraints, this project is developed across three specialized branches. Below is an exhaustive comparison of classification performance and execution timing across all three approaches:
+
+### ⚡ Comparison Matrix
+
+| Branch / Approach | Core Dependencies & Tech Stack | Classification Accuracy (Test Set) | Feature Extraction Time (1,951 files) | End-to-End Pipeline Time (Pre-computed Cache) | End-to-End Pipeline Time (Full Pipeline) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **[`pure-python`](https://github.com/titospadini/mafaulda-sbm/tree/pure-python)** | **Zero-Dependency** standard library only (`math`, `multiprocessing`) | **98.96%** | $\approx$ 4,149.50 seconds (1.15 hours) | **22.50 seconds** | $\approx$ 4,172.00 seconds |
+| **[`main` (CPU-Only)](https://github.com/titospadini/mafaulda-sbm)** *(Current)* | Standard scientific stack (`numpy`, `scipy`, `scikit-learn`) | **98.47%** | **42.77 seconds** | **5.83 seconds** | **48.60 seconds** |
+| **[`gpu` (GPU-Accelerated)](https://github.com/titospadini/mafaulda-sbm/tree/gpu)** | GPU-optimized tensor stack (`pytorch` CUDA 12.4, `scipy`, `scikit-learn`) | **98.47%** | **30.16 seconds** | **5.98 seconds** | **36.14 seconds** (25% faster) |
+
+> [!NOTE]
+> All benchmarks were measured on a dedicated testing machine equipped with an **AMD Ryzen 7 9800X3D (8 Cores, 16 Threads)** CPU, an **NVIDIA GeForce RTX 5070 Ti (16 GB VRAM)** GPU, and **64 GB DDR5 RAM** running Ubuntu 26.04 LTS via WSL2.
+
+### 🔑 Critical Architectural Insights
+
+* **The `pure-python` Tradeoff**:
+  * **The Pros**: Zero third-party dependencies! It runs entirely out-of-the-box on any standard Python 3.10+ installation.
+  * **The Cons**: High-frequency signal processing is computationally intensive. Implementing a Cooley-Tukey Radix-2 FFT and statistical operators (Mean, Shannon Entropy, Kurtosis) in pure Python on raw time-series ($1,951\text{ files} \times 8\text{ channels} \times 250,000\text{ samples} \approx 3.9\text{ billion datapoints}$) leads to heavy CPU-bound processing, making full feature extraction slow.
+  * *Tip*: Utilize `--skip_extraction` to bypass raw DSP parsing and load the pre-computed 46-dimensional feature vectors in under **22.5 seconds**!
+* **The `main` (CPU) baseline**:
+  * Leverages underlying C-optimized and vectorized libraries (`numpy` and `scipy` FFTW backends) to accelerate high-frequency signal processing and matrix calculations, reducing the extraction time from over an hour to just **42.77 seconds**.
+* **The `gpu` Acceleration**:
+  * Offloads massive batches of Fast Fourier Transforms (FFTs) and high-dimensional SBM similarity projections directly onto NVIDIA CUDA tensor cores via PyTorch, achieving a **30% speedup** in feature extraction and **25% overall end-to-end speedup**.
+
+------
+
 ## 🚀 How to Run the Project
 
 ### 1. Installation & Dependencies
