@@ -68,56 +68,58 @@ def evaluate_classifier(
     clf: RandomForestClassifier,
     X_test: np.ndarray,
     y_test: np.ndarray,
-    y_train_labels: np.ndarray = None
+    y_train_labels: np.ndarray = None,
+    X_train: np.ndarray = None,
+    y_train: np.ndarray = None
 ) -> np.ndarray:
     """
-    Evaluates the performance of the trained Random Forest classifier on the
-    test split,
-    printing the overall accuracy, labeled confusion matrix, and a comprehensive
-    classification report.
-
-    Pedagogical Context:
-        To verify model fidelity and replication accuracy, we calculate:
-          - Overall Classification Accuracy: The fraction of correctly diagnosed
-            operating scenarios.
-          - Labeled Confusion Matrix: A tabular breakdown of true vs predicted
-            classes, critical for
-            inspecting exactly which machine fault states are confused (e.g.
-            horizontal misalignment vs vertical).
-          - Precision, Recall, and F1-Score: Metric bounds computed per class,
-            ensuring that the model's
-            performance is evaluated with equal rigor across both abundant and
-            highly scarce (Normal) classes.
+    Evaluates the performance of the trained Random Forest classifier on the test split
+    (and training split if provided), printing the partition accuracies, generalization gap,
+    labeled confusion matrix, and a comprehensive classification report.
 
     Parameters:
         clf (RandomForestClassifier): A fully trained Random Forest model.
-        X_test (np.ndarray): The extended testing feature matrix of shape
-        (num_test, num_features).
+        X_test (np.ndarray): The extended testing feature matrix of shape (num_test, num_features).
         y_test (np.ndarray): True test label array.
-        y_train_labels (np.ndarray): Training labels (used to enforce
-        consistent, alphabetized class sorting).
+        y_train_labels (np.ndarray, optional): Training labels (used to enforce consistent class sorting).
+        X_train (np.ndarray, optional): The extended training feature matrix of shape (num_train, num_features).
+        y_train (np.ndarray, optional): True training label array.
 
     Returns:
         np.ndarray: Predicted label array of shape (num_test,).
     """
     y_pred = clf.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
+    test_accuracy = accuracy_score(y_test, y_pred)
 
-    log("\n================ EVALUATION RESULTS ================", level=1)
-    log(f"Overall Classification Accuracy: {accuracy * 100.0:.2f}%", level=1)
-    log(f"Expected Accuracy from Paper:   ~98.49%", level=1)
-    log("====================================================", level=1)
+    log("\n=================== EVALUATION RESULTS ===================", level=1)
+    if X_train is not None and y_train is not None:
+        y_train_pred = clf.predict(X_train)
+        train_accuracy = accuracy_score(y_train, y_train_pred)
+        gen_gap = (train_accuracy - test_accuracy) * 100.0
+
+        log(f"Training Set Accuracy:           {train_accuracy * 100.0:.2f}%", level=1)
+        log(f"Test Set Accuracy (Generalization): {test_accuracy * 100.0:.2f}%", level=1)
+        log(f"Generalization Gap (Train - Test): {gen_gap:.2f}%", level=1)
+    else:
+        log(f"Overall Classification Accuracy: {test_accuracy * 100.0:.2f}%", level=1)
+
+    log(f"Expected Accuracy from Paper:    ~98.49%", level=1)
+    log("==========================================================", level=1)
 
     # Labeled Confusion Matrix
     if y_train_labels is None:
-        unique_labels = sorted(list(clf.classes_))
+        if y_train is not None:
+            unique_labels = sorted(list(np.unique(y_train)))
+        else:
+            unique_labels = sorted(list(clf.classes_))
     else:
         unique_labels = sorted(list(np.unique(y_train_labels)))
+
     cm = confusion_matrix(y_test, y_pred, labels=unique_labels)
     print_formatted_confusion_matrix(cm, unique_labels)
 
     # Classification Report
-    log("\n--- CLASSIFICATION REPORT ---", level=1)
+    log("\n--- TEST SET CLASSIFICATION REPORT ---", level=1)
     log(classification_report(y_test, y_pred, labels=unique_labels), level=1)
 
     return y_pred
