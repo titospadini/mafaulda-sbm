@@ -249,7 +249,14 @@ def run_pipeline(
     log(f"Training completed in {time.time() - train_start:.2f} seconds.", level=2)
 
     log("Evaluating classifier...", level=2)
-    evaluate_classifier(clf, X_test_extended, y_test, y_train)
+    evaluate_classifier(
+        clf=clf,
+        X_test=X_test_extended,
+        y_test=y_test,
+        y_train_labels=y_train,
+        X_train=X_train_extended,
+        y_train=y_train
+    )
 
     pipeline_elapsed = time.time() - pipeline_start
     log(f"\nEnd-to-End Pipeline completed successfully in {pipeline_elapsed:.2f} seconds!", level=2)
@@ -263,7 +270,15 @@ if __name__ == '__main__':
     parser.add_argument('--skip_extraction', action='store_true',
                         help='Skip parallel feature extraction if original .npy files exist in data/.')
     parser.add_argument('--tune', action='store_true',
-                        help='Execute Stratified 10-Fold Cross-Validation tuning grid search instead.')
+                        help='Execute hyperparameter tuning / cross-validation grid search.')
+    parser.add_argument('--cv_method', type=str,
+                        choices=['stratified', 'stratified_group', 'kfold', 'repeated_stratified', 'nested'],
+                        default='stratified',
+                        help="Cross-validation strategy ('stratified' reproduces paper default, 'stratified_group' isolates operating speed conditions, 'kfold', 'repeated_stratified', or 'nested').")
+    parser.add_argument('--n_splits', type=int, default=10,
+                        help='Number of cross-validation folds/splits (default: 10).')
+    parser.add_argument('--n_repeats', type=int, default=5,
+                        help='Number of repetitions for RepeatedStratifiedKFold (default: 5).')
     parser.add_argument('--use_hann', action='store_true',
                         help='Apply Hanning window and coherent gain correction to FFT.')
     parser.add_argument('--use_fixed_entropy', action='store_true',
@@ -298,7 +313,13 @@ if __name__ == '__main__':
 
     try:
         if args.tune:
-            run_tuning(data_dir, use_gpu=args.gpu)
+            run_tuning(
+                data_dir,
+                cv_method=args.cv_method,
+                n_splits=args.n_splits,
+                n_repeats=args.n_repeats,
+                use_gpu=args.gpu
+            )
         else:
             run_pipeline(
                 dataset_path,
@@ -314,3 +335,4 @@ if __name__ == '__main__':
         if verbosity_level > 0:
             traceback.print_exc()
         sys.exit(1)
+

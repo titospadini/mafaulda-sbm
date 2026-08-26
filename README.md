@@ -117,14 +117,22 @@ python scripts/exp3_cfg3.py --gpu
 
 ##### Exposing Command-Line Arguments
 
-The pipeline exposes the following flexible arguments to control feature extraction, cross-validation, and caching:
+The pipeline exposes flexible arguments to control feature extraction, cross-validation methods, and caching:
 
 * `--dataset_path <path>`: Specifies the directory path to the raw MaFaulDa database folder (defaults to `~/datasets/mafaulda`).
 * `--gpu`: Enables full GPU-accelerated feature extraction and SBM projections using PyTorch and CUDA. It streams signals asynchronously in optimal batches of 32, fully saturating GPU cores and relieving the CPU.
-* `--use_hann`: Applies a Hanning window function (with exact coherent gain correction) to the Discrete Fourier Transform (DFT) signals to mitigate spectral leakage.
-* `--use_fixed_entropy`: Strictly locks the Shannon entropy histogram range to `(-10.0, 10.0)` across all files. This fixes a critical signal processing bug where dynamic-bin scaling distorts entropy features.
-* `--tune`: Executes a full Stratified 10-fold Cross-Validation grid search to inspect SBM hyperparameter performance over gamma ($\gamma$) and threshold tau ($\tau$) directly on the GPU.
-* `--skip_extraction`: Speeds up SBM iteration by reusing pre-extracted features under the `./data` directory.
+* `--use_hann`: Applies a Hanning window function (with exact coherent gain correction) to the Discrete Fourier Transform (DFT) signals. This mitigates spectral leakage and side-lobe noise, allowing peak frequency magnitude extraction to be highly precise.
+* `--use_fixed_entropy`: Strictly locks the Shannon entropy histogram range to `(-10.0, 10.0)` across all files. This fixes a critical signal processing bug where dynamic-bin scaling distorts entropy features when signals experience sudden peak/shock impulses.
+* `--tune`: Executes SBM hyperparameter tuning and cross-validation grid search over gamma ($\gamma$) and threshold tau ($\tau$).
+* `--cv_method <method>`: Selects the cross-validation strategy:
+  * `stratified` *(Default / Paper Reproduction)*: 10-Fold Stratified Cross-Validation strictly reproducing the benchmark protocol from *Marins et al. (2018)*.
+  * `stratified_group`: Stratified Group K-Fold. Groups recordings by operational speed regime ($f_r$) to eliminate condition/acoustic leakage between training and validation folds while preserving 6-class balance.
+  * `nested`: Nested Cross-Validation (outer loop for unbiased generalization estimation, inner loop for data-leakage-free hyperparameter tuning).
+  * `repeated_stratified`: Multi-repeat Stratified K-Fold for variance estimation.
+  * `kfold`: Standard K-Fold without stratification.
+* `--n_splits <N>`: Number of folds/splits for cross-validation (default: `10`).
+* `--n_repeats <N>`: Number of repetitions when using `repeated_stratified` (default: `5`).
+* `--skip_extraction`: Speeds up SBM iteration and model training loops by reusing pre-extracted features under the `./data` directory instead of parsing the 1,951 raw CSV files.
 
 ##### 📊 Peak Performance Comparison
 
@@ -140,6 +148,24 @@ The pipeline exposes the following flexible arguments to control feature extract
 * **RAM**: 64 GB DDR5 RAM (32 GB allocated to WSL2)
 * **Storage**: SSD NVMe PCIe 5.0 (2 TB Capacity)
 * **OS**: Ubuntu 26.04 LTS running via WSL2 (Host: Windows 11 Pro)
+
+##### Cross-Validation & Hyperparameter Tuning Examples
+
+All cross-validation and pipeline runs report separated metrics across **Training**, **Validation**, and **Test** partitions to evaluate model fit and diagnose the real-world generalization gap:
+
+```bash
+# 1. Paper Reproduction Baseline (Default: 10-Fold Stratified CV)
+python main.py --skip_extraction --tune --cv_method stratified --n_splits 10
+
+# 2. Group-Aware CV (Isolates operating speed regimes to prevent condition leakage)
+python main.py --skip_extraction --tune --cv_method stratified_group --n_splits 10
+
+# 3. Unbiased Nested Cross-Validation (Outer generalization + inner parameter tuning)
+python main.py --skip_extraction --tune --cv_method nested --n_splits 5
+
+# 4. Repeated Stratified CV (e.g., 5 folds repeated 5 times)
+python main.py --skip_extraction --tune --cv_method repeated_stratified --n_splits 5 --n_repeats 5
+```
 
 #### Option B: Interactive Jupyter Notebook
 
