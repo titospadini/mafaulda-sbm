@@ -22,8 +22,13 @@ This script handles Step 3 of the Rotating-Machine Fault Diagnosis pipeline:
 import os
 import sys
 import time
-from typing import Dict
+from typing import Dict, Optional, Any
 import numpy as np
+
+try:
+    import torch
+except ImportError:
+    torch = None
 
 from mafaulda.gpu_utils import is_gpu_available, to_tensor, to_numpy
 
@@ -92,15 +97,67 @@ def wegerich_similarity(
     return 1.0 / (1.0 + gamma * l1_dist)
 
 
+def compute_geometric_median_torch(
+    X_tensor: "torch.Tensor",
+    max_iter: int = 2000,
+    tol: float = 1e-6
+) -> "torch.Tensor":
+    """GPU-accelerated geometric median calculation using Weiszfeld's algorithm on PyTorch tensors."""
+    import torch
+    if len(X_tensor) == 0:
+        raise ValueError("Cannot compute geometric median of an empty set.")
+    if len(X_tensor) == 1:
+        return X_tensor[0].clone()
+
+    y = torch.mean(X_tensor, dim=0)
+    for _ in range(max_iter):
+        diff = X_tensor - y
+        distances = torch.linalg.norm(diff, dim=1)
+        weights = 1.0 / torch.clamp(distances, min=1e-12)
+        sum_weights = torch.sum(weights)
+        new_y = torch.sum(X_tensor * weights.unsqueeze(1), dim=0) / sum_weights
+        if torch.linalg.norm(new_y - y) < tol:
+            return new_y
+        y = new_y
+    return y
+
+
+def construct_class_dictionary_torch(
+    X_c_tensor: "torch.Tensor",
+    tau: float = TAU,
+    gamma: float = GAMMA
+) -> "torch.Tensor":
+    """GPU-accelerated class dictionary construction using Threshold Method on PyTorch tensors."""
+    import torch
+    g_median = compute_geometric_median_torch(X_c_tensor, max_iter=2000, tol=1e-6)
+    D_c_tensor = g_median.unsqueeze(0)  # shape (1, D)
+
+    # Vectorized similarity checking for candidate additions
+    for i in range(len(X_c_tensor)):
+        x_i = X_c_tensor[i:i+1]
+        l1_dist = torch.sum(torch.abs(D_c_tensor - x_i), dim=-1)
+        sims = 1.0 / (1.0 + gamma * l1_dist)
+        if torch.all(sims < tau):
+            D_c_tensor = torch.cat([D_c_tensor, x_i], dim=0)
+
+    return D_c_tensor
+
+
 def compute_geometric_median(
     X: np.ndarray,
     max_iter: int = 2000,
-    tol: float = 1e-6
+    tol: float = 1e-6,
+    use_gpu: bool = False
 ) -> np.ndarray:
     """
     Finds the geometric median of a multi-dimensional dataset X using the robust
     iterative Weiszfeld's algorithm.
     """
+    if use_gpu and is_gpu_available():
+        X_tensor = to_tensor(X)
+        med_tensor = compute_geometric_median_torch(X_tensor, max_iter=max_iter, tol=tol)
+        return to_numpy(med_tensor)
+
     if len(X) == 0:
         raise ValueError("Cannot compute geometric median of an empty set.")
     if len(X) == 1:
@@ -124,12 +181,18 @@ def compute_geometric_median(
 def construct_class_dictionary(
     X_c: np.ndarray,
     tau: float = TAU,
-    gamma: float = GAMMA
+    gamma: float = GAMMA,
+    use_gpu: bool = False
 ) -> np.ndarray:
     """
     Constructs the compact SBM representative state dictionary (memory matrix)
     D_c for class c using the threshold method seeded with the class geometric median.
     """
+    if use_gpu and is_gpu_available():
+        X_c_tensor = to_tensor(X_c)
+        D_c_tensor = construct_class_dictionary_torch(X_c_tensor, tau=tau, gamma=gamma)
+        return to_numpy(D_c_tensor)
+
     g_median = compute_geometric_median(X_c, max_iter=2000, tol=1e-6)
     D_c_list = [g_median]
 
@@ -140,6 +203,7 @@ def construct_class_dictionary(
             D_c_list.append(x)
 
     return np.array(D_c_list)
+
 
 
 def compute_sbm_estimates(

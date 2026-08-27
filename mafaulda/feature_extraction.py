@@ -231,7 +231,7 @@ def process_set_parallel(
         from mafaulda.gpu_feature_extraction import extract_features_batch_gpu
         log("Using high-performance GPU-batched CUDA signal processing backend.", level=1)
 
-        batch_size = 32  # Optimal batch size (empirically proven global optimum sweet spot for RTX 5070 Ti)
+        batch_size = 64  # Optimal batch size for RTX 5070 Ti tensor core throughput
         feature_vectors = []
 
         # Instantiate a single ProcessPoolExecutor to stream CPU file loading in the background

@@ -42,90 +42,84 @@ def extract_features_batch_gpu(
     use_fixed_entropy: bool = False
 ) -> np.ndarray:
     """
-    Computes 46 diagnostic features for an entire batch of signals simultaneously on the GPU.
+    Computes 46 diagnostic features for an entire batch of signals simultaneously on the GPU,
+    vectorized across all 8 channels with zero per-channel sequential Python loops.
     batch_signals: shape (B, N, 8) np.ndarray
     """
-    # 1. Push batch to CUDA
     device_data = to_tensor(batch_signals)  # shape: (B, N, 8) on CUDA
     B, N, _ = device_data.shape
 
-    # 2. Extract rotation frequency fr from tachometer signal (column 7)
-    tacho = device_data[:, :, 7]  # shape: (B, N)
+    # 1. Batched all-channel FFT
     if use_hann:
-        window = torch.hann_window(N, periodic=False, device=device_data.device, dtype=device_data.dtype)
-        fft_tacho = torch.fft.rfft(tacho * window, dim=1)
-        mags_tacho = torch.abs(fft_tacho) / (N / 4.0)
+        window = torch.hann_window(N, periodic=False, device=device_data.device, dtype=device_data.dtype).view(1, N, 1)
+        fft_all = torch.fft.rfft(device_data * window, dim=1)
+        mags_all = torch.abs(fft_all) / (N / 4.0)
     else:
-        fft_tacho = torch.fft.rfft(tacho, dim=1)
-        mags_tacho = torch.abs(fft_tacho) / (N / 2.0)
+        fft_all = torch.fft.rfft(device_data, dim=1)
+        mags_all = torch.abs(fft_all) / (N / 2.0)
 
-    freqs = torch.fft.rfftfreq(N, d=1.0/SAMPLING_RATE, device=device_data.device)
-
-    # Restrict search for rotation speed peak to physical range [5, 120] Hz
+    # 2. Extract rotation frequency fr from tachometer signal (channel 7)
+    freqs = torch.fft.rfftfreq(N, d=1.0 / SAMPLING_RATE, device=device_data.device)
     mask = (freqs >= 5.0) & (freqs <= 120.0)
     masked_freqs = freqs[mask]
-    masked_mags = mags_tacho[:, mask]
+    masked_mags = mags_all[:, mask, 7]
 
     peak_sub_idx = torch.argmax(masked_mags, dim=1)
     f_r = masked_freqs[peak_sub_idx]  # shape: (B,)
 
-    feature_vector = [f_r]
+    # 3. Vectorized spectral magnitudes of the first 7 sensors at fr, 2fr, 3fr (21 features)
+    targets = torch.stack([f_r, 2.0 * f_r, 3.0 * f_r], dim=1)  # shape: (B, 3)
+    df = freqs[1] - freqs[0]
+    idx = targets / df
+    idx_low = torch.floor(idx).long()
+    idx_high = torch.clamp(idx_low + 1, max=len(freqs) - 1)
+    weight = (idx - idx_low.to(device_data.dtype)).unsqueeze(1)  # shape: (B, 1, 3)
 
-    # 3. Spectral magnitudes of the first 7 sensor signals at fr, 2fr, 3fr
-    for col_idx in range(7):
-        col_signal = device_data[:, :, col_idx]
-        if use_hann:
-            window = torch.hann_window(N, periodic=False, device=device_data.device, dtype=device_data.dtype)
-            fft_col = torch.fft.rfft(col_signal * window, dim=1)
-            mags_col = torch.abs(fft_col) / (N / 4.0)
-        else:
-            fft_col = torch.fft.rfft(col_signal, dim=1)
-            mags_col = torch.abs(fft_col) / (N / 2.0)
+    mags_7 = mags_all[:, :, :7].permute(0, 2, 1)  # shape: (B, 7, freqs_len)
+    batch_idx = torch.arange(B, device=device_data.device).view(B, 1, 1).expand(B, 7, 3)
+    sensor_idx = torch.arange(7, device=device_data.device).view(1, 7, 1).expand(B, 7, 3)
+    low_exp = idx_low.unsqueeze(1).expand(B, 7, 3)
+    high_exp = idx_high.unsqueeze(1).expand(B, 7, 3)
 
-        mag_1 = interp_fft_mags_batch(f_r, freqs, mags_col)
-        mag_2 = interp_fft_mags_batch(2.0 * f_r, freqs, mags_col)
-        mag_3 = interp_fft_mags_batch(3.0 * f_r, freqs, mags_col)
+    val_low = mags_7[batch_idx, sensor_idx, low_exp]
+    val_high = mags_7[batch_idx, sensor_idx, high_exp]
+    interp_mags = (1.0 - weight) * val_low + weight * val_high  # shape: (B, 7, 3)
+    harmonic_features = interp_mags.reshape(B, 21)
 
-        feature_vector.append(mag_1)
-        feature_vector.append(mag_2)
-        feature_vector.append(mag_3)
+    # 4. Statistical descriptors (mean, Shannon entropy, kurtosis) across all 8 signals simultaneously
+    mean_vals = torch.mean(device_data, dim=1)  # shape: (B, 8)
+    diffs = device_data - mean_vals.unsqueeze(1)
+    var = torch.mean(diffs ** 2, dim=1)
+    std = torch.sqrt(var)
+    z = diffs / torch.clamp(std.unsqueeze(1), min=1e-12)
+    kurt_vals = torch.mean(z ** 4, dim=1) - 3.0  # shape: (B, 8)
 
-    # 4. Statistical features (mean, Shannon entropy, kurtosis) for all 8 signals
-    for col_idx in range(8):
-        col_signal = device_data[:, :, col_idx]
+    # Vectorized 100-bin Shannon Entropy across (B, 8)
+    if use_fixed_entropy:
+        v_clamped = torch.clamp(device_data, min=-10.0, max=10.0)
+        idx_ent = (v_clamped - (-10.0)) / (20.0 / 100.0)
+        bin_indices = torch.clamp(torch.floor(idx_ent).long(), min=0, max=99)
+    else:
+        min_val = torch.amin(device_data, dim=1, keepdim=True)
+        max_val = torch.amax(device_data, dim=1, keepdim=True)
+        span = max_val - min_val
+        span = torch.where(span == 0.0, torch.ones_like(span), span)
+        idx_ent = (device_data - min_val) / (span / 100.0)
+        bin_indices = torch.clamp(torch.floor(idx_ent).long(), min=0, max=99)
 
-        # Mean
-        mean_val = torch.mean(col_signal, dim=1)
+    batch_offset = torch.arange(B, device=device_data.device).view(B, 1, 1) * 800
+    channel_offset = torch.arange(8, device=device_data.device).view(1, 1, 8) * 100
+    total_offset = batch_offset + channel_offset
+    flat_indices = (bin_indices + total_offset).view(-1)
+    flat_counts = torch.bincount(flat_indices, minlength=B * 800)
+    counts = flat_counts.view(B, 8, 100)
+    probs = counts.to(device_data.dtype) / torch.sum(counts, dim=2, keepdim=True)
+    entropy_vals = -torch.sum(probs * torch.log2(torch.clamp(probs, min=1e-12)), dim=2)  # shape: (B, 8)
 
-        # Shannon Entropy (estimated using 100-bin histogram on GPU via bincount offset trick)
-        if use_fixed_entropy:
-            v_clamped = torch.clamp(col_signal, min=-10.0, max=10.0)
-            idx = (v_clamped - (-10.0)) / (20.0 / 100.0)
-            bin_indices = torch.clamp(torch.floor(idx).long(), min=0, max=99)
-        else:
-            min_val = torch.min(col_signal, dim=1, keepdim=True)[0]
-            max_val = torch.max(col_signal, dim=1, keepdim=True)[0]
-            span = max_val - min_val
-            span = torch.where(span == 0.0, torch.ones_like(span), span)
-            idx = (col_signal - min_val) / (span / 100.0)
-            bin_indices = torch.clamp(torch.floor(idx).long(), min=0, max=99)
+    # Interleave statistics for each sensor: [mean(i), entropy(i), kurt(i)]
+    stats_interleaved = torch.stack([mean_vals, entropy_vals, kurt_vals], dim=2).reshape(B, 24)
 
-        # Offset trick for batch bincount
-        offset = torch.arange(B, device=device_data.device).unsqueeze(1) * 100
-        flat_indices = (bin_indices + offset).view(-1)
-        flat_counts = torch.bincount(flat_indices, minlength=B * 100)
-        counts = flat_counts.view(B, 100)
-
-        probs = counts.to(device_data.dtype) / torch.sum(counts, dim=1, keepdim=True)
-        entropy_val = -torch.sum(probs * torch.log2(torch.clamp(probs, min=1e-12)), dim=1)
-
-        # Kurtosis
-        kurt_val = kurtosis_torch_batch(col_signal, fisher=True)
-
-        feature_vector.append(mean_val)
-        feature_vector.append(entropy_val)
-        feature_vector.append(kurt_val)
-
-    # 5. Convert list of GPU tensors of shape (B,) back to single NumPy array of shape (B, 46)
-    feature_tensor = torch.stack(feature_vector, dim=1)
+    # 5. Assemble all 46 diagnostic features
+    feature_tensor = torch.cat([f_r.unsqueeze(1), harmonic_features, stats_interleaved], dim=1)
     return to_numpy(feature_tensor)
+

@@ -1,5 +1,17 @@
 import sys
 
+# Ensure UTF-8 output across Windows consoles
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # Global verbosity level
 # 0: Quiet/Silent (only error stacktraces or explicit forced prints)
 # 1: Standard/Default (current print levels)
@@ -21,4 +33,9 @@ def log(msg: str = "", level: int = 1, **kwargs) -> None:
     Prints a message conditionally if the current verbosity is >= the specified level.
     """
     if _verbosity >= level:
-        print(msg, **kwargs)
+        try:
+            print(msg, **kwargs)
+        except UnicodeEncodeError:
+            clean_msg = msg.encode("ascii", errors="replace").decode("ascii")
+            print(clean_msg, **kwargs)
+

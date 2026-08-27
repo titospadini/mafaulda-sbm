@@ -250,7 +250,7 @@ def run_tuning(
                 unique_classes = np.unique(y_tr)
                 for cls in unique_classes:
                     X_c = X_tr[y_tr == cls]
-                    D_c = construct_class_dictionary(X_c, tau=tau, gamma=gamma)
+                    D_c = construct_class_dictionary(X_c, tau=tau, gamma=gamma, use_gpu=use_gpu)
                     D_c_dict[cls] = D_c
 
                 # SBM estimation and error vector generation
@@ -387,7 +387,7 @@ def run_nested_cv(
                     D_c_dict = {}
                     for cls in np.unique(y_in_tr):
                         X_c = X_in_tr[y_in_tr == cls]
-                        D_c = construct_class_dictionary(X_c, tau=tau, gamma=gamma)
+                        D_c = construct_class_dictionary(X_c, tau=tau, gamma=gamma, use_gpu=use_gpu)
                         D_c_dict[cls] = D_c
 
                     X_in_tr_ext = generate_extended_features(X_in_tr, D_c_dict, gamma=gamma, use_gpu=use_gpu)
