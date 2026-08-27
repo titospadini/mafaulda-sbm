@@ -104,7 +104,7 @@ python main.py --use_hann --use_fixed_entropy
 ##### Running Experiment 3 Configuration 3 (52-Dimensional SBM Similarities)
 To execute the replication pipeline utilizing direct SBM class similarity vectors as extended features, run:
 ```bash
-python exp3_cfg3.py
+python scripts/exp3_cfg3.py
 ```
 
 ##### Exposing Command-Line Arguments
