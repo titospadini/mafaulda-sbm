@@ -123,7 +123,7 @@ python scripts/exp3_cfg3.py --gpu
 The pipeline exposes flexible arguments to control feature extraction, cross-validation methods, and caching:
 
 * `--dataset_path <path>`: Specifies the directory path to the raw MaFaulDa database folder (defaults to `~/datasets/mafaulda`).
-* `--gpu`: Enables full GPU-accelerated feature extraction and SBM projections using PyTorch and CUDA. It streams signals asynchronously in optimal batches of 32, fully saturating GPU cores and relieving the CPU.
+* `--gpu`: Enables full GPU-accelerated feature extraction and SBM projections using PyTorch and CUDA. It streams signals asynchronously in optimal batches of 64 with all-channel vectorized multidimensional FFTs, fully saturating GPU tensor cores and relieving the CPU.
 * `--use_hann`: Applies a Hanning window function (with exact coherent gain correction) to the Discrete Fourier Transform (DFT) signals. This mitigates spectral leakage and side-lobe noise, allowing peak frequency magnitude extraction to be highly precise.
 * `--use_fixed_entropy`: Strictly locks the Shannon entropy histogram range to `(-10.0, 10.0)` across all files. This fixes a critical signal processing bug where dynamic-bin scaling distorts entropy features when signals experience sudden peak/shock impulses.
 * `--tune`: Executes SBM hyperparameter tuning and cross-validation grid search over gamma ($\gamma$) and threshold tau ($\tau$).
@@ -139,7 +139,7 @@ The pipeline exposes flexible arguments to control feature extraction, cross-val
 
 ##### 📊 Peak Performance Comparison
 
-| Metric | CPU-Only Baseline | **Streaming Batched GPU (Batch 32)** | **The Speedup** |
+| Metric | CPU-Only Baseline | **Streaming Batched GPU (Batch 64)** | **The Speedup** |
 | :--- | :--- | :--- | :--- |
 | **Accuracy** | **98.47%** | **98.47%** | **100% Parity** |
 | **Training Feature Extraction** | 42.77 seconds | **30.16 seconds** | **30% Faster** |
