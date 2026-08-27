@@ -21,47 +21,25 @@ from mafaulda.logging_utils import log
 
 def train_classifier(
     X_train: np.ndarray,
-    y_train: np.ndarray
+    y_train: np.ndarray,
+    n_estimators: int = 500,
+    n_jobs: int = -1,
+    random_state: int = 42
 ) -> RandomForestClassifier:
     """
     Initializes and trains the Random Forest classifier using standardized
     hyperparameters.
-
-    Pedagogical Context:
-        The classification task is handled by a Random Forest Ensemble.
-        Standardizing the forest's
-        hyperparameters is crucial for model stability and reproducibility:
-          - `n_estimators=500`: A high number of trees reduces voting variance
-            and guarantees highly stable
-            decision boundaries without increasing overfitting risk.
-          - `max_features='sqrt'`: Selecting a random subset of $\\sqrt{d}$
-            features at each node split
-            decorrelates the individual trees, improving the overall ensemble
-            robustness.
-          - `class_weight='balanced'`: Automatically scales weights inversely
-            proportional to class frequencies.
-            This is critical because the MaFaulDa dataset is extremely
-            unbalanced (e.g. only 49 normal files vs 558
-            underhang files), ensuring that normal operating states are not
-            ignored or misclassified.
-
-    Parameters:
-        X_train (np.ndarray): The extended feature matrix of shape (num_samples,
-        num_features).
-        y_train (np.ndarray): The 1D target label array.
-
-    Returns:
-        RandomForestClassifier: A fully trained Random Forest Classifier model.
     """
     clf = RandomForestClassifier(
-        n_estimators=500,
+        n_estimators=n_estimators,
         max_features='sqrt',
         class_weight='balanced',
-        n_jobs=-1,
-        random_state=42
+        n_jobs=n_jobs,
+        random_state=random_state
     )
     clf.fit(X_train, y_train)
     return clf
+
 
 
 def evaluate_classifier(

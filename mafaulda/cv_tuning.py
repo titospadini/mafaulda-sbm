@@ -40,9 +40,13 @@ from sklearn.model_selection import (
 )
 from sklearn.metrics import accuracy_score
 
+from joblib import Parallel, delayed
+
 from mafaulda.sbm_model import (
     construct_class_dictionary,
     generate_extended_features,
+    compute_geometric_median,
+    wegerich_similarity,
 )
 
 from mafaulda.rf_classifier import (
@@ -50,6 +54,7 @@ from mafaulda.rf_classifier import (
     evaluate_classifier,
 )
 from mafaulda.logging_utils import log
+
 
 
 VALIDATION_METHODS = {
@@ -223,71 +228,91 @@ def run_tuning(
         random_state=random_state
     )
 
-    results = []
+    # Generate splits (with groups if supported)
+    if method == 'stratified_group':
+        split_iter = splitter.split(X_train, y_train, groups=groups_train)
+    elif method == 'kfold':
+        split_iter = splitter.split(X_train)
+    else:
+        split_iter = splitter.split(X_train, y_train)
+
+    splits = list(split_iter)
+
+    # Precompute class partitions and geometric medians for all folds (zero leakage)
+    fold_cache = []
+    for train_idx, val_idx in splits:
+        X_tr, X_val = X_train[train_idx], X_train[val_idx]
+        y_tr, y_val = y_train[train_idx], y_train[val_idx]
+        unique_classes = np.unique(y_tr)
+        class_data = {
+            cls: (X_tr[y_tr == cls], compute_geometric_median(X_tr[y_tr == cls]))
+            for cls in unique_classes
+        }
+        fold_cache.append((X_tr, y_tr, X_val, y_val, class_data))
+
+    def fast_construct_dict(X_c: np.ndarray, g_med: np.ndarray, tau: float, gamma: float) -> np.ndarray:
+        D_list = [g_med]
+        for x in X_c:
+            D_arr = np.array(D_list)
+            sims = wegerich_similarity(D_arr, x, gamma=gamma)
+            if all(s < tau for s in sims):
+                D_list.append(x)
+        return np.array(D_list)
+
+    def evaluate_single_combination(gamma: float, tau: float) -> Tuple[float, float, float, float, float, float]:
+        comb_start = time.time()
+        fold_train_accs = []
+        fold_val_accs = []
+
+        for X_tr, y_tr, X_val, y_val, class_data in fold_cache:
+            # Construct dictionaries from precomputed medians
+            D_c_dict = {
+                cls: fast_construct_dict(Xc, g_med, tau, gamma)
+                for cls, (Xc, g_med) in class_data.items()
+            }
+
+            # SBM estimation and error vector generation
+            X_tr_ext = generate_extended_features(X_tr, D_c_dict, gamma=gamma, use_gpu=use_gpu)
+            X_val_ext = generate_extended_features(X_val, D_c_dict, gamma=gamma, use_gpu=use_gpu)
+
+            # Train Random Forest Classifier on fold
+            clf = train_classifier(X_tr_ext, y_tr, n_estimators=100, n_jobs=2)
+
+            # Evaluate both Training and Validation folds
+            tr_pred = clf.predict(X_tr_ext)
+            val_pred = clf.predict(X_val_ext)
+
+            fold_train_accs.append(accuracy_score(y_tr, tr_pred))
+            fold_val_accs.append(accuracy_score(y_val, val_pred))
+
+        mean_tr_acc = np.mean(fold_train_accs)
+        mean_val_acc = np.mean(fold_val_accs)
+        std_val_acc = np.std(fold_val_accs)
+        overfit_gap = (mean_tr_acc - mean_val_acc) * 100.0
+
+        log(
+            f"  -> Combination gamma={gamma:.4f}, tau={tau:.2f} | "
+            f"Train: {mean_tr_acc * 100.0:.2f}% | "
+            f"Val ({n_splits}-Fold): {mean_val_acc * 100.0:.2f}% (±{std_val_acc * 100.0:.2f}%) | "
+            f"Gap: {overfit_gap:.2f}% [computed in {time.time() - comb_start:.2f}s]",
+            level=2
+        )
+        return (gamma, tau, mean_tr_acc, mean_val_acc, std_val_acc, overfit_gap)
+
     grid_start_time = time.time()
+    combinations = [(g, t) for g in gammas for t in taus]
 
-    for gamma in gammas:
-        for tau in taus:
-            comb_start = time.time()
-            log(f"\nEvaluating combination: gamma={gamma}, tau={tau}...", level=2)
-            fold_train_accs = []
-            fold_val_accs = []
-
-            # Generate splits (with groups if supported)
-            if method == 'stratified_group':
-                split_iter = splitter.split(X_train, y_train, groups=groups_train)
-            elif method == 'kfold':
-                split_iter = splitter.split(X_train)
-            else:
-                split_iter = splitter.split(X_train, y_train)
-
-            for fold, (train_idx, val_idx) in enumerate(split_iter):
-                X_tr, X_val = X_train[train_idx], X_train[val_idx]
-                y_tr, y_val = y_train[train_idx], y_train[val_idx]
-
-                # Dictionary matrix construction per fold (zero leakage)
-                D_c_dict = {}
-                unique_classes = np.unique(y_tr)
-                for cls in unique_classes:
-                    X_c = X_tr[y_tr == cls]
-                    D_c = construct_class_dictionary(X_c, tau=tau, gamma=gamma, use_gpu=use_gpu)
-                    D_c_dict[cls] = D_c
-
-                # SBM estimation and error vector generation
-                X_tr_ext = generate_extended_features(X_tr, D_c_dict, gamma=gamma, use_gpu=use_gpu)
-                X_val_ext = generate_extended_features(X_val, D_c_dict, gamma=gamma, use_gpu=use_gpu)
-
-                # Train Random Forest Classifier
-                clf = train_classifier(X_tr_ext, y_tr)
-
-                # Evaluate both Training and Validation folds
-                tr_pred = clf.predict(X_tr_ext)
-                val_pred = clf.predict(X_val_ext)
-
-                acc_tr = accuracy_score(y_tr, tr_pred)
-                acc_val = accuracy_score(y_val, val_pred)
-
-                fold_train_accs.append(acc_tr)
-                fold_val_accs.append(acc_val)
-
-            mean_tr_acc = np.mean(fold_train_accs)
-            mean_val_acc = np.mean(fold_val_accs)
-            std_val_acc = np.std(fold_val_accs)
-            overfit_gap = (mean_tr_acc - mean_val_acc) * 100.0
-
-            results.append((gamma, tau, mean_tr_acc, mean_val_acc, std_val_acc, overfit_gap))
-            log(
-                f"  -> Train: {mean_tr_acc * 100.0:.2f}% | "
-                f"Val ({n_splits}-Fold): {mean_val_acc * 100.0:.2f}% (±{std_val_acc * 100.0:.2f}%) | "
-                f"Gap: {overfit_gap:.2f}% [computed in {time.time() - comb_start:.2f}s]",
-                level=2
-            )
+    # Evaluate parameter combinations concurrently across threads
+    results = Parallel(n_jobs=4, prefer="threads")(
+        delayed(evaluate_single_combination)(g, t) for g, t in combinations
+    )
 
     grid_elapsed = time.time() - grid_start_time
     log(f"\nGrid search completed in {grid_elapsed:.2f} seconds.", level=2)
 
     # Sort results by mean validation accuracy descending
     results.sort(key=lambda x: x[3], reverse=True)
+
     best_gamma, best_tau, best_tr_acc, best_val_acc, best_val_std, best_gap = results[0]
 
     # Print formatted comparison table with Train, Validation, and Overfitting Gap

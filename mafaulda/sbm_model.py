@@ -188,11 +188,6 @@ def construct_class_dictionary(
     Constructs the compact SBM representative state dictionary (memory matrix)
     D_c for class c using the threshold method seeded with the class geometric median.
     """
-    if use_gpu and is_gpu_available():
-        X_c_tensor = to_tensor(X_c)
-        D_c_tensor = construct_class_dictionary_torch(X_c_tensor, tau=tau, gamma=gamma)
-        return to_numpy(D_c_tensor)
-
     g_median = compute_geometric_median(X_c, max_iter=2000, tol=1e-6)
     D_c_list = [g_median]
 
@@ -203,6 +198,7 @@ def construct_class_dictionary(
             D_c_list.append(x)
 
     return np.array(D_c_list)
+
 
 
 
